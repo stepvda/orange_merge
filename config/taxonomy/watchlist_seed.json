@@ -1,0 +1,1793 @@
+{
+ "origin": "import:Orange_use_case",
+ "description": "Out-of-taxonomy terms observed by the Orange_use_case pipeline (watchlist_terms table, radar.db, Aug 2026), aggregated across verticals. Seeded once into an empty taxonomy_watchlist table; generic terms and terms the radar vocabulary already resolves are dropped at import.",
+ "source": "https://github.com/amellalajiba-sys/Orange_use_case",
+ "terms": [
+  {
+   "dimension": "technologies",
+   "term": "AI",
+   "frequency": 77,
+   "verticals": [
+    "Aerospace & Defense",
+    "Defense",
+    "Energy",
+    "Fast Moving Consumer Goods",
+    "Finance & Insurance",
+    "Healthcare",
+    "IT and Services",
+    "Life Sciences",
+    "Manufacturing",
+    "Media & Entertainment",
+    "Public Sector",
+    "Retail",
+    "Transportation and Logistics"
+   ],
+   "first_seen": "2026-08-20T09:39:17.953504+00:00",
+   "last_seen": "2026-08-24T14:02:28.170366+00:00"
+  },
+  {
+   "dimension": "use_cases",
+   "term": "Regulatory Compliance",
+   "frequency": 20,
+   "verticals": [
+    "Aerospace & Defense",
+    "Construction",
+    "Energy",
+    "Fast Moving Consumer Goods",
+    "Healthcare",
+    "IT and Services",
+    "Life Sciences",
+    "Natural Resources",
+    "Transportation and Logistics",
+    "Wholesale"
+   ],
+   "first_seen": "2026-08-20T18:36:44.946835+00:00",
+   "last_seen": "2026-08-26T06:21:28.758219+00:00"
+  },
+  {
+   "dimension": "technologies",
+   "term": "Data",
+   "frequency": 14,
+   "verticals": [
+    "Aerospace & Defense",
+    "Automotive",
+    "Finance & Insurance",
+    "IT and Services",
+    "Life Sciences",
+    "Manufacturing",
+    "Media & Entertainment",
+    "Natural Resources",
+    "Public Sector",
+    "Wholesale"
+   ],
+   "first_seen": "2026-08-20T13:05:49.160581+00:00",
+   "last_seen": "2026-08-26T06:22:55.680136+00:00"
+  },
+  {
+   "dimension": "use_cases",
+   "term": "Regulatory Compliance Management",
+   "frequency": 6,
+   "verticals": [
+    "Aerospace & Defense",
+    "Fast Moving Consumer Goods",
+    "Healthcare",
+    "Manufacturing",
+    "Natural Resources"
+   ],
+   "first_seen": "2026-08-20T14:19:47.250740+00:00",
+   "last_seen": "2026-08-26T06:22:55.766153+00:00"
+  },
+  {
+   "dimension": "use_cases",
+   "term": "AI sovereignty",
+   "frequency": 5,
+   "verticals": [
+    "Public Sector"
+   ],
+   "first_seen": "2026-08-23T06:52:24.021094+00:00",
+   "last_seen": "2026-08-23T13:13:53.821045+00:00"
+  },
+  {
+   "dimension": "use_cases",
+   "term": "Health Technology Assessment",
+   "frequency": 5,
+   "verticals": [
+    "Healthcare"
+   ],
+   "first_seen": "2026-08-20T18:51:39.363879+00:00",
+   "last_seen": "2026-08-26T06:19:15.546206+00:00"
+  },
+  {
+   "dimension": "use_cases",
+   "term": "Citizen Participation Platforms",
+   "frequency": 4,
+   "verticals": [
+    "Public Sector",
+    "Wholesale"
+   ],
+   "first_seen": "2026-08-21T10:42:56.661145+00:00",
+   "last_seen": "2026-08-23T15:22:04.409555+00:00"
+  },
+  {
+   "dimension": "use_cases",
+   "term": "Network Modernization & SD‐WAN",
+   "frequency": 4,
+   "verticals": [
+    "Energy",
+    "Public Sector",
+    "Transportation and Logistics"
+   ],
+   "first_seen": "2026-08-21T13:30:59.518821+00:00",
+   "last_seen": "2026-08-26T06:20:02.526489+00:00"
+  },
+  {
+   "dimension": "technologies",
+   "term": "Quantum Computing",
+   "frequency": 4,
+   "verticals": [
+    "Energy",
+    "Public Sector"
+   ],
+   "first_seen": "2026-08-20T09:39:22.221414+00:00",
+   "last_seen": "2026-08-21T12:32:40.190209+00:00"
+  },
+  {
+   "dimension": "use_cases",
+   "term": "Responsible AI",
+   "frequency": 4,
+   "verticals": [
+    "Finance & Insurance"
+   ],
+   "first_seen": "2026-08-21T06:40:45.685516+00:00",
+   "last_seen": "2026-08-22T14:52:42.821713+00:00"
+  },
+  {
+   "dimension": "technologies",
+   "term": "Agentic AI",
+   "frequency": 3,
+   "verticals": [
+    "Finance & Insurance"
+   ],
+   "first_seen": "2026-08-20T09:39:17.981078+00:00",
+   "last_seen": "2026-08-20T14:19:51.408078+00:00"
+  },
+  {
+   "dimension": "use_cases",
+   "term": "Digital Care Delivery",
+   "frequency": 3,
+   "verticals": [
+    "Healthcare"
+   ],
+   "first_seen": "2026-08-23T06:53:00.383404+00:00",
+   "last_seen": "2026-08-23T13:14:53.982259+00:00"
+  },
+  {
+   "dimension": "technologies",
+   "term": "Edge AI",
+   "frequency": 3,
+   "verticals": [
+    "Manufacturing"
+   ],
+   "first_seen": "2026-08-21T10:42:57.065443+00:00",
+   "last_seen": "2026-08-21T10:46:01.202565+00:00"
+  },
+  {
+   "dimension": "use_cases",
+   "term": "Electronic Attestation",
+   "frequency": 3,
+   "verticals": [
+    "Public Sector"
+   ],
+   "first_seen": "2026-08-20T18:51:09.867208+00:00",
+   "last_seen": "2026-08-22T14:04:50.934653+00:00"
+  },
+  {
+   "dimension": "technologies",
+   "term": "Federated Learning",
+   "frequency": 3,
+   "verticals": [
+    "Aerospace & Defense",
+    "Finance & Insurance"
+   ],
+   "first_seen": "2026-08-20T14:16:34.704595+00:00",
+   "last_seen": "2026-08-25T08:14:19.316701+00:00"
+  },
+  {
+   "dimension": "technologies",
+   "term": "FedRAMP-Level Cloud Compliance",
+   "frequency": 3,
+   "verticals": [
+    "Public Sector"
+   ],
+   "first_seen": "2026-08-21T10:42:56.993801+00:00",
+   "last_seen": "2026-08-21T10:46:01.136556+00:00"
+  },
+  {
+   "dimension": "use_cases",
+   "term": "Fraud Detection",
+   "frequency": 3,
+   "verticals": [
+    "Finance & Insurance"
+   ],
+   "first_seen": "2026-08-21T10:42:56.593422+00:00",
+   "last_seen": "2026-08-21T10:46:00.736440+00:00"
+  },
+  {
+   "dimension": "use_cases",
+   "term": "Good Manufacturing Practice compliance",
+   "frequency": 3,
+   "verticals": [
+    "Manufacturing"
+   ],
+   "first_seen": "2026-08-20T18:36:12.826673+00:00",
+   "last_seen": "2026-08-21T05:02:00.216595+00:00"
+  },
+  {
+   "dimension": "use_cases",
+   "term": "Industrial Digital Twin & Automation",
+   "frequency": 3,
+   "verticals": [
+    "Energy",
+    "Fast Moving Consumer Goods",
+    "IT and Services"
+   ],
+   "first_seen": "2026-08-23T07:04:43.089564+00:00",
+   "last_seen": "2026-08-23T07:07:47.960165+00:00"
+  },
+  {
+   "dimension": "use_cases",
+   "term": "Medical Imaging Procurement",
+   "frequency": 3,
+   "verticals": [
+    "Manufacturing"
+   ],
+   "first_seen": "2026-08-21T10:42:56.726708+00:00",
+   "last_seen": "2026-08-21T10:46:00.870236+00:00"
+  },
+  {
+   "dimension": "technologies",
+   "term": "Network & SD‐WAN",
+   "frequency": 3,
+   "verticals": [
+    "Public Sector",
+    "Transportation and Logistics"
+   ],
+   "first_seen": "2026-08-22T14:04:50.863336+00:00",
+   "last_seen": "2026-08-26T06:20:02.621282+00:00"
+  },
+  {
+   "dimension": "use_cases",
+   "term": "Risk & Fraud Management",
+   "frequency": 3,
+   "verticals": [
+    "Finance & Insurance"
+   ],
+   "first_seen": "2026-08-21T10:42:56.526719+00:00",
+   "last_seen": "2026-08-21T10:46:00.658326+00:00"
+  },
+  {
+   "dimension": "technologies",
+   "term": "Robotic Process Automation (RPA)",
+   "frequency": 3,
+   "verticals": [
+    "Finance & Insurance"
+   ],
+   "first_seen": "2026-08-21T10:42:56.793872+00:00",
+   "last_seen": "2026-08-21T10:46:00.935608+00:00"
+  },
+  {
+   "dimension": "technologies",
+   "term": "Sovereign Cloud Security",
+   "frequency": 3,
+   "verticals": [
+    "Public Sector"
+   ],
+   "first_seen": "2026-08-21T10:42:56.860036+00:00",
+   "last_seen": "2026-08-21T10:46:00.991174+00:00"
+  },
+  {
+   "dimension": "technologies",
+   "term": "Zero Trust File Protection",
+   "frequency": 3,
+   "verticals": [
+    "Public Sector"
+   ],
+   "first_seen": "2026-08-21T10:42:56.927705+00:00",
+   "last_seen": "2026-08-21T10:46:01.057881+00:00"
+  },
+  {
+   "dimension": "use_cases",
+   "term": "Autonomous Driving",
+   "frequency": 2,
+   "verticals": [
+    "Automotive"
+   ],
+   "first_seen": "2026-08-25T18:06:39.512015+00:00",
+   "last_seen": "2026-08-26T05:13:12.848189+00:00"
+  },
+  {
+   "dimension": "technologies",
+   "term": "blockchain",
+   "frequency": 2,
+   "verticals": [
+    "IT and Services",
+    "Wholesale"
+   ],
+   "first_seen": "2026-08-22T18:49:57.739578+00:00",
+   "last_seen": "2026-08-23T07:06:24.310312+00:00"
+  },
+  {
+   "dimension": "use_cases",
+   "term": "Contactless Blood Pressure Monitoring",
+   "frequency": 2,
+   "verticals": [
+    "Healthcare"
+   ],
+   "first_seen": "2026-08-25T18:05:18.152703+00:00",
+   "last_seen": "2026-08-26T05:11:31.674761+00:00"
+  },
+  {
+   "dimension": "use_cases",
+   "term": "Data Sovereignty",
+   "frequency": 2,
+   "verticals": [
+    "Finance & Insurance",
+    "Healthcare"
+   ],
+   "first_seen": "2026-08-23T15:09:51.677493+00:00",
+   "last_seen": "2026-08-25T18:04:24.430477+00:00"
+  },
+  {
+   "dimension": "use_cases",
+   "term": "Energy Regulation Compliance",
+   "frequency": 2,
+   "verticals": [
+    "Energy"
+   ],
+   "first_seen": "2026-08-25T18:05:41.140258+00:00",
+   "last_seen": "2026-08-26T05:12:01.519807+00:00"
+  },
+  {
+   "dimension": "use_cases",
+   "term": "Environmental Impact Monitoring",
+   "frequency": 2,
+   "verticals": [
+    "Construction"
+   ],
+   "first_seen": "2026-08-24T13:48:25.661111+00:00",
+   "last_seen": "2026-08-25T08:12:32.744777+00:00"
+  },
+  {
+   "dimension": "use_cases",
+   "term": "Environmental Pollution Monitoring",
+   "frequency": 2,
+   "verticals": [
+    "Natural Resources"
+   ],
+   "first_seen": "2026-08-24T14:01:29.618250+00:00",
+   "last_seen": "2026-08-25T08:14:01.568355+00:00"
+  },
+  {
+   "dimension": "use_cases",
+   "term": "Environmental Reporting",
+   "frequency": 2,
+   "verticals": [
+    "Manufacturing"
+   ],
+   "first_seen": "2026-08-20T18:51:03.203618+00:00",
+   "last_seen": "2026-08-20T19:01:03.516115+00:00"
+  },
+  {
+   "dimension": "use_cases",
+   "term": "European Business Wallets",
+   "frequency": 2,
+   "verticals": [
+    "Public Sector"
+   ],
+   "first_seen": "2026-08-20T18:36:20.185409+00:00",
+   "last_seen": "2026-08-21T12:31:35.625035+00:00"
+  },
+  {
+   "dimension": "use_cases",
+   "term": "Humanoid Robotics",
+   "frequency": 2,
+   "verticals": [
+    "Manufacturing"
+   ],
+   "first_seen": "2026-08-24T13:45:42.294179+00:00",
+   "last_seen": "2026-08-24T14:01:12.316891+00:00"
+  },
+  {
+   "dimension": "use_cases",
+   "term": "Industrial IoT Forensics",
+   "frequency": 2,
+   "verticals": [
+    "Manufacturing"
+   ],
+   "first_seen": "2026-08-20T14:16:30.215608+00:00",
+   "last_seen": "2026-08-20T14:19:47.259802+00:00"
+  },
+  {
+   "dimension": "technologies",
+   "term": "Metaverse",
+   "frequency": 2,
+   "verticals": [
+    "Construction"
+   ],
+   "first_seen": "2026-08-25T18:07:00.236916+00:00",
+   "last_seen": "2026-08-26T05:13:40.425743+00:00"
+  },
+  {
+   "dimension": "use_cases",
+   "term": "Regulatory Compliance Automation",
+   "frequency": 2,
+   "verticals": [
+    "Fast Moving Consumer Goods",
+    "Life Sciences"
+   ],
+   "first_seen": "2026-08-23T06:55:26.456322+00:00",
+   "last_seen": "2026-08-26T06:23:24.303604+00:00"
+  },
+  {
+   "dimension": "use_cases",
+   "term": "Renewable Energy Integration",
+   "frequency": 2,
+   "verticals": [
+    "Energy"
+   ],
+   "first_seen": "2026-08-20T18:37:04.313662+00:00",
+   "last_seen": "2026-08-26T06:19:35.310652+00:00"
+  },
+  {
+   "dimension": "use_cases",
+   "term": "Robotic Yard‐Care Platform",
+   "frequency": 2,
+   "verticals": [
+    "Manufacturing"
+   ],
+   "first_seen": "2026-08-23T07:03:04.833007+00:00",
+   "last_seen": "2026-08-23T10:51:46.427041+00:00"
+  },
+  {
+   "dimension": "technologies",
+   "term": "Satellite Connectivity",
+   "frequency": 2,
+   "verticals": [
+    "Manufacturing",
+    "Transportation and Logistics"
+   ],
+   "first_seen": "2026-08-22T14:06:29.512258+00:00",
+   "last_seen": "2026-08-23T15:08:51.545174+00:00"
+  },
+  {
+   "dimension": "use_cases",
+   "term": "Secure communications",
+   "frequency": 2,
+   "verticals": [
+    "Defense"
+   ],
+   "first_seen": "2026-08-23T06:54:20.874533+00:00",
+   "last_seen": "2026-08-23T15:20:19.081232+00:00"
+  },
+  {
+   "dimension": "use_cases",
+   "term": "Accessibility Compliance",
+   "frequency": 1,
+   "verticals": [
+    "Public Sector"
+   ],
+   "first_seen": "2026-08-20T19:01:12.060947+00:00",
+   "last_seen": "2026-08-20T19:01:12.060947+00:00"
+  },
+  {
+   "dimension": "use_cases",
+   "term": "AI Agents",
+   "frequency": 1,
+   "verticals": [
+    "Retail"
+   ],
+   "first_seen": "2026-08-22T18:46:00.615305+00:00",
+   "last_seen": "2026-08-22T18:46:00.615305+00:00"
+  },
+  {
+   "dimension": "use_cases",
+   "term": "AI factories",
+   "frequency": 1,
+   "verticals": [
+    "Manufacturing"
+   ],
+   "first_seen": "2026-08-21T13:29:27.741400+00:00",
+   "last_seen": "2026-08-21T13:29:27.741400+00:00"
+  },
+  {
+   "dimension": "use_cases",
+   "term": "AI Governance",
+   "frequency": 1,
+   "verticals": [
+    "IT and Services"
+   ],
+   "first_seen": "2026-08-25T08:15:13.869241+00:00",
+   "last_seen": "2026-08-25T08:15:13.869241+00:00"
+  },
+  {
+   "dimension": "use_cases",
+   "term": "AI Safety",
+   "frequency": 1,
+   "verticals": [
+    "Manufacturing"
+   ],
+   "first_seen": "2026-08-25T18:04:18.914810+00:00",
+   "last_seen": "2026-08-25T18:04:18.914810+00:00"
+  },
+  {
+   "dimension": "technologies",
+   "term": "AI Service Exports",
+   "frequency": 1,
+   "verticals": [
+    "Public Sector"
+   ],
+   "first_seen": "2026-08-22T14:52:46.985639+00:00",
+   "last_seen": "2026-08-22T14:52:46.985639+00:00"
+  },
+  {
+   "dimension": "use_cases",
+   "term": "AI-driven Capital Raising",
+   "frequency": 1,
+   "verticals": [
+    "Finance & Insurance"
+   ],
+   "first_seen": "2026-08-23T07:03:11.560274+00:00",
+   "last_seen": "2026-08-23T07:03:11.560274+00:00"
+  },
+  {
+   "dimension": "use_cases",
+   "term": "Air Quality Ecosystem for Healthier Indoor Environments",
+   "frequency": 1,
+   "verticals": [
+    "Public Sector"
+   ],
+   "first_seen": "2026-08-25T08:10:24.776368+00:00",
+   "last_seen": "2026-08-25T08:10:24.776368+00:00"
+  },
+  {
+   "dimension": "use_cases",
+   "term": "AI‐driven cybersecurity risk assessment",
+   "frequency": 1,
+   "verticals": [
+    "Defense"
+   ],
+   "first_seen": "2026-08-25T08:12:00.614092+00:00",
+   "last_seen": "2026-08-25T08:12:00.614092+00:00"
+  },
+  {
+   "dimension": "use_cases",
+   "term": "AI‐generated music",
+   "frequency": 1,
+   "verticals": [
+    "Media & Entertainment"
+   ],
+   "first_seen": "2026-08-25T18:07:57.642201+00:00",
+   "last_seen": "2026-08-25T18:07:57.642201+00:00"
+  },
+  {
+   "dimension": "use_cases",
+   "term": "AI‐related IPOs",
+   "frequency": 1,
+   "verticals": [
+    "Finance & Insurance"
+   ],
+   "first_seen": "2026-08-23T06:52:20.682291+00:00",
+   "last_seen": "2026-08-23T06:52:20.682291+00:00"
+  },
+  {
+   "dimension": "use_cases",
+   "term": "Autonomous Operations",
+   "frequency": 1,
+   "verticals": [
+    "Finance & Insurance"
+   ],
+   "first_seen": "2026-08-21T06:40:45.778373+00:00",
+   "last_seen": "2026-08-21T06:40:45.778373+00:00"
+  },
+  {
+   "dimension": "use_cases",
+   "term": "Banking Services Upgrade",
+   "frequency": 1,
+   "verticals": [
+    "Finance & Insurance"
+   ],
+   "first_seen": "2026-08-23T06:52:20.585525+00:00",
+   "last_seen": "2026-08-23T06:52:20.585525+00:00"
+  },
+  {
+   "dimension": "use_cases",
+   "term": "Billing Efficiency",
+   "frequency": 1,
+   "verticals": [
+    "Finance & Insurance"
+   ],
+   "first_seen": "2026-08-25T08:10:21.061712+00:00",
+   "last_seen": "2026-08-25T08:10:21.061712+00:00"
+  },
+  {
+   "dimension": "technologies",
+   "term": "Blockchain for Supply Chain",
+   "frequency": 1,
+   "verticals": [
+    "Wholesale"
+   ],
+   "first_seen": "2026-08-25T08:13:18.853563+00:00",
+   "last_seen": "2026-08-25T08:13:18.853563+00:00"
+  },
+  {
+   "dimension": "use_cases",
+   "term": "Clinical Workflow Automation",
+   "frequency": 1,
+   "verticals": [
+    "Healthcare"
+   ],
+   "first_seen": "2026-08-23T15:09:51.736357+00:00",
+   "last_seen": "2026-08-23T15:09:51.736357+00:00"
+  },
+  {
+   "dimension": "use_cases",
+   "term": "Cloud Voice Strategy",
+   "frequency": 1,
+   "verticals": [
+    "Retail"
+   ],
+   "first_seen": "2026-08-23T13:14:18.722796+00:00",
+   "last_seen": "2026-08-23T13:14:18.722796+00:00"
+  },
+  {
+   "dimension": "use_cases",
+   "term": "Cold Chain Challenges",
+   "frequency": 1,
+   "verticals": [
+    "Transportation and Logistics"
+   ],
+   "first_seen": "2026-08-25T08:11:39.076854+00:00",
+   "last_seen": "2026-08-25T08:11:39.076854+00:00"
+  },
+  {
+   "dimension": "use_cases",
+   "term": "Compliance‐Heavy AI Architecture",
+   "frequency": 1,
+   "verticals": [
+    "Life Sciences"
+   ],
+   "first_seen": "2026-08-25T18:07:16.551301+00:00",
+   "last_seen": "2026-08-25T18:07:16.551301+00:00"
+  },
+  {
+   "dimension": "use_cases",
+   "term": "Construction product regulatory compliance",
+   "frequency": 1,
+   "verticals": [
+    "Construction"
+   ],
+   "first_seen": "2026-08-23T15:21:05.553808+00:00",
+   "last_seen": "2026-08-23T15:21:05.553808+00:00"
+  },
+  {
+   "dimension": "use_cases",
+   "term": "Construction Safety Analytics",
+   "frequency": 1,
+   "verticals": [
+    "Construction"
+   ],
+   "first_seen": "2026-08-26T06:21:09.357778+00:00",
+   "last_seen": "2026-08-26T06:21:09.357778+00:00"
+  },
+  {
+   "dimension": "use_cases",
+   "term": "Construction sustainability and carbon neutrality",
+   "frequency": 1,
+   "verticals": [
+    "Construction"
+   ],
+   "first_seen": "2026-08-23T15:21:05.664477+00:00",
+   "last_seen": "2026-08-23T15:21:05.664477+00:00"
+  },
+  {
+   "dimension": "use_cases",
+   "term": "Creative Design",
+   "frequency": 1,
+   "verticals": [
+    "Manufacturing"
+   ],
+   "first_seen": "2026-08-22T14:52:37.447595+00:00",
+   "last_seen": "2026-08-22T14:52:37.447595+00:00"
+  },
+  {
+   "dimension": "use_cases",
+   "term": "Critical raw material supply chain resilience",
+   "frequency": 1,
+   "verticals": [
+    "Aerospace & Defense"
+   ],
+   "first_seen": "2026-08-23T15:22:30.384041+00:00",
+   "last_seen": "2026-08-23T15:22:30.384041+00:00"
+  },
+  {
+   "dimension": "use_cases",
+   "term": "Crypto Financial Services",
+   "frequency": 1,
+   "verticals": [
+    "Public Sector"
+   ],
+   "first_seen": "2026-08-22T14:52:46.884796+00:00",
+   "last_seen": "2026-08-22T14:52:46.884796+00:00"
+  },
+  {
+   "dimension": "use_cases",
+   "term": "Cyber Claim Frequency Prediction",
+   "frequency": 1,
+   "verticals": [
+    "Finance & Insurance"
+   ],
+   "first_seen": "2026-08-24T13:45:45.851028+00:00",
+   "last_seen": "2026-08-24T13:45:45.851028+00:00"
+  },
+  {
+   "dimension": "use_cases",
+   "term": "Cyber Defense & Zero Trust",
+   "frequency": 1,
+   "verticals": [
+    "Healthcare"
+   ],
+   "first_seen": "2026-08-23T15:09:51.819248+00:00",
+   "last_seen": "2026-08-23T15:09:51.819248+00:00"
+  },
+  {
+   "dimension": "use_cases",
+   "term": "Data Harmonization",
+   "frequency": 1,
+   "verticals": [
+    "Life Sciences"
+   ],
+   "first_seen": "2026-08-22T18:48:26.234098+00:00",
+   "last_seen": "2026-08-22T18:48:26.234098+00:00"
+  },
+  {
+   "dimension": "technologies",
+   "term": "Digital Identity Wallets",
+   "frequency": 1,
+   "verticals": [
+    "Public Sector"
+   ],
+   "first_seen": "2026-08-20T18:51:09.971902+00:00",
+   "last_seen": "2026-08-20T18:51:09.971902+00:00"
+  },
+  {
+   "dimension": "technologies",
+   "term": "Digital Infrastructure",
+   "frequency": 1,
+   "verticals": [
+    "Wholesale"
+   ],
+   "first_seen": "2026-08-23T15:22:04.478324+00:00",
+   "last_seen": "2026-08-23T15:22:04.478324+00:00"
+  },
+  {
+   "dimension": "use_cases",
+   "term": "Digital Infrastructure",
+   "frequency": 1,
+   "verticals": [
+    "IT and Services"
+   ],
+   "first_seen": "2026-08-23T15:23:38.860425+00:00",
+   "last_seen": "2026-08-23T15:23:38.860425+00:00"
+  },
+  {
+   "dimension": "technologies",
+   "term": "Digital Security Fabric",
+   "frequency": 1,
+   "verticals": [
+    "Defense"
+   ],
+   "first_seen": "2026-08-23T15:20:19.145444+00:00",
+   "last_seen": "2026-08-23T15:20:19.145444+00:00"
+  },
+  {
+   "dimension": "use_cases",
+   "term": "Disaster response coordination",
+   "frequency": 1,
+   "verticals": [
+    "Public Sector"
+   ],
+   "first_seen": "2026-08-23T06:52:24.168772+00:00",
+   "last_seen": "2026-08-23T06:52:24.168772+00:00"
+  },
+  {
+   "dimension": "use_cases",
+   "term": "Drones for physical security and threat mitigation",
+   "frequency": 1,
+   "verticals": [
+    "Defense"
+   ],
+   "first_seen": "2026-08-25T08:12:00.599378+00:00",
+   "last_seen": "2026-08-25T08:12:00.599378+00:00"
+  },
+  {
+   "dimension": "use_cases",
+   "term": "Dual‐use export controls compliance",
+   "frequency": 1,
+   "verticals": [
+    "Aerospace & Defense"
+   ],
+   "first_seen": "2026-08-23T15:22:30.304029+00:00",
+   "last_seen": "2026-08-23T15:22:30.304029+00:00"
+  },
+  {
+   "dimension": "technologies",
+   "term": "Edge Computing",
+   "frequency": 1,
+   "verticals": [
+    "Energy"
+   ],
+   "first_seen": "2026-08-22T14:05:59.446480+00:00",
+   "last_seen": "2026-08-22T14:05:59.446480+00:00"
+  },
+  {
+   "dimension": "use_cases",
+   "term": "Electronic Attestation Management",
+   "frequency": 1,
+   "verticals": [
+    "Public Sector"
+   ],
+   "first_seen": "2026-08-26T06:18:32.866438+00:00",
+   "last_seen": "2026-08-26T06:18:32.866438+00:00"
+  },
+  {
+   "dimension": "use_cases",
+   "term": "Employee security in conflict zones",
+   "frequency": 1,
+   "verticals": [
+    "Defense"
+   ],
+   "first_seen": "2026-08-24T13:47:34.042530+00:00",
+   "last_seen": "2026-08-24T13:47:34.042530+00:00"
+  },
+  {
+   "dimension": "use_cases",
+   "term": "Energy Efficiency Regulation",
+   "frequency": 1,
+   "verticals": [
+    "Energy"
+   ],
+   "first_seen": "2026-08-23T06:53:25.274174+00:00",
+   "last_seen": "2026-08-23T06:53:25.274174+00:00"
+  },
+  {
+   "dimension": "use_cases",
+   "term": "Environmental Compliance",
+   "frequency": 1,
+   "verticals": [
+    "Natural Resources"
+   ],
+   "first_seen": "2026-08-22T14:56:10.313287+00:00",
+   "last_seen": "2026-08-22T14:56:10.313287+00:00"
+  },
+  {
+   "dimension": "use_cases",
+   "term": "eProcurement",
+   "frequency": 1,
+   "verticals": [
+    "Public Sector"
+   ],
+   "first_seen": "2026-08-22T14:04:50.979215+00:00",
+   "last_seen": "2026-08-22T14:04:50.979215+00:00"
+  },
+  {
+   "dimension": "use_cases",
+   "term": "eProcurement Automation",
+   "frequency": 1,
+   "verticals": [
+    "Public Sector"
+   ],
+   "first_seen": "2026-08-21T13:29:35.839576+00:00",
+   "last_seen": "2026-08-21T13:29:35.839576+00:00"
+  },
+  {
+   "dimension": "technologies",
+   "term": "European Business Wallets",
+   "frequency": 1,
+   "verticals": [
+    "Public Sector"
+   ],
+   "first_seen": "2026-08-20T19:01:12.165180+00:00",
+   "last_seen": "2026-08-20T19:01:12.165180+00:00"
+  },
+  {
+   "dimension": "technologies",
+   "term": "Explainable AI",
+   "frequency": 1,
+   "verticals": [
+    "Finance & Insurance"
+   ],
+   "first_seen": "2026-08-23T13:13:43.124476+00:00",
+   "last_seen": "2026-08-23T13:13:43.124476+00:00"
+  },
+  {
+   "dimension": "use_cases",
+   "term": "Financial Regulatory Compliance",
+   "frequency": 1,
+   "verticals": [
+    "Finance & Insurance"
+   ],
+   "first_seen": "2026-08-22T18:45:54.388661+00:00",
+   "last_seen": "2026-08-22T18:45:54.388661+00:00"
+  },
+  {
+   "dimension": "technologies",
+   "term": "Generative AI",
+   "frequency": 1,
+   "verticals": [
+    "Energy"
+   ],
+   "first_seen": "2026-08-21T13:30:59.418041+00:00",
+   "last_seen": "2026-08-21T13:30:59.418041+00:00"
+  },
+  {
+   "dimension": "use_cases",
+   "term": "Good Distribution Practice compliance",
+   "frequency": 1,
+   "verticals": [
+    "Wholesale"
+   ],
+   "first_seen": "2026-08-26T06:21:51.847115+00:00",
+   "last_seen": "2026-08-26T06:21:51.847115+00:00"
+  },
+  {
+   "dimension": "use_cases",
+   "term": "Good Manufacturing Practice",
+   "frequency": 1,
+   "verticals": [
+    "Manufacturing"
+   ],
+   "first_seen": "2026-08-20T19:01:03.442294+00:00",
+   "last_seen": "2026-08-20T19:01:03.442294+00:00"
+  },
+  {
+   "dimension": "use_cases",
+   "term": "Grid Integration",
+   "frequency": 1,
+   "verticals": [
+    "Energy"
+   ],
+   "first_seen": "2026-08-20T18:52:04.297886+00:00",
+   "last_seen": "2026-08-20T18:52:04.297886+00:00"
+  },
+  {
+   "dimension": "use_cases",
+   "term": "Grid Optimization",
+   "frequency": 1,
+   "verticals": [
+    "Natural Resources"
+   ],
+   "first_seen": "2026-08-23T07:06:57.780327+00:00",
+   "last_seen": "2026-08-23T07:06:57.780327+00:00"
+  },
+  {
+   "dimension": "technologies",
+   "term": "Grid Optimization",
+   "frequency": 1,
+   "verticals": [
+    "Natural Resources"
+   ],
+   "first_seen": "2026-08-24T13:49:43.388749+00:00",
+   "last_seen": "2026-08-24T13:49:43.388749+00:00"
+  },
+  {
+   "dimension": "use_cases",
+   "term": "Humanoid Robot",
+   "frequency": 1,
+   "verticals": [
+    "Manufacturing"
+   ],
+   "first_seen": "2026-08-23T07:03:04.950499+00:00",
+   "last_seen": "2026-08-23T07:03:04.950499+00:00"
+  },
+  {
+   "dimension": "technologies",
+   "term": "Humanoid Robotics Performance",
+   "frequency": 1,
+   "verticals": [
+    "Manufacturing"
+   ],
+   "first_seen": "2026-08-23T10:51:46.492165+00:00",
+   "last_seen": "2026-08-23T10:51:46.492165+00:00"
+  },
+  {
+   "dimension": "use_cases",
+   "term": "Hybrid Superyacht emissions‐free at anchor",
+   "frequency": 1,
+   "verticals": [
+    "Natural Resources"
+   ],
+   "first_seen": "2026-08-25T18:08:21.354799+00:00",
+   "last_seen": "2026-08-25T18:08:21.354799+00:00"
+  },
+  {
+   "dimension": "technologies",
+   "term": "Industrial Connectivity",
+   "frequency": 1,
+   "verticals": [
+    "Natural Resources"
+   ],
+   "first_seen": "2026-08-23T06:56:30.931103+00:00",
+   "last_seen": "2026-08-23T06:56:30.931103+00:00"
+  },
+  {
+   "dimension": "use_cases",
+   "term": "Insurance Claims Automation",
+   "frequency": 1,
+   "verticals": [
+    "Finance & Insurance"
+   ],
+   "first_seen": "2026-08-22T18:45:54.292676+00:00",
+   "last_seen": "2026-08-22T18:45:54.292676+00:00"
+  },
+  {
+   "dimension": "use_cases",
+   "term": "IT Services Market Size To Exceed $3.35 Trillion By 2035",
+   "frequency": 1,
+   "verticals": [
+    "IT and Services"
+   ],
+   "first_seen": "2026-08-23T15:23:38.647483+00:00",
+   "last_seen": "2026-08-23T15:23:38.647483+00:00"
+  },
+  {
+   "dimension": "use_cases",
+   "term": "IT Staff Augmentation and Managed Services",
+   "frequency": 1,
+   "verticals": [
+    "IT and Services"
+   ],
+   "first_seen": "2026-08-23T15:23:38.795706+00:00",
+   "last_seen": "2026-08-23T15:23:38.795706+00:00"
+  },
+  {
+   "dimension": "use_cases",
+   "term": "LLM Prompt Engineering",
+   "frequency": 1,
+   "verticals": [
+    "Wholesale"
+   ],
+   "first_seen": "2026-08-25T18:07:37.026389+00:00",
+   "last_seen": "2026-08-25T18:07:37.026389+00:00"
+  },
+  {
+   "dimension": "use_cases",
+   "term": "LPG regulatory compliance (2026)",
+   "frequency": 1,
+   "verticals": [
+    "Energy"
+   ],
+   "first_seen": "2026-08-23T15:20:04.675167+00:00",
+   "last_seen": "2026-08-23T15:20:04.675167+00:00"
+  },
+  {
+   "dimension": "technologies",
+   "term": "Machine‐Generated Content Detection",
+   "frequency": 1,
+   "verticals": [
+    "Fast Moving Consumer Goods"
+   ],
+   "first_seen": "2026-08-26T06:23:24.352636+00:00",
+   "last_seen": "2026-08-26T06:23:24.352636+00:00"
+  },
+  {
+   "dimension": "use_cases",
+   "term": "Media concentration regulation",
+   "frequency": 1,
+   "verticals": [
+    "Media & Entertainment"
+   ],
+   "first_seen": "2026-08-26T06:22:20.055596+00:00",
+   "last_seen": "2026-08-26T06:22:20.055596+00:00"
+  },
+  {
+   "dimension": "use_cases",
+   "term": "Medical Device Regulation compliance",
+   "frequency": 1,
+   "verticals": [
+    "Healthcare"
+   ],
+   "first_seen": "2026-08-22T14:53:22.963384+00:00",
+   "last_seen": "2026-08-22T14:53:22.963384+00:00"
+  },
+  {
+   "dimension": "use_cases",
+   "term": "Medical Device Regulatory Compliance",
+   "frequency": 1,
+   "verticals": [
+    "Life Sciences"
+   ],
+   "first_seen": "2026-08-25T18:07:16.643357+00:00",
+   "last_seen": "2026-08-25T18:07:16.643357+00:00"
+  },
+  {
+   "dimension": "use_cases",
+   "term": "Microgravity Manufacturing",
+   "frequency": 1,
+   "verticals": [
+    "Aerospace & Defense"
+   ],
+   "first_seen": "2026-08-26T05:15:32.854921+00:00",
+   "last_seen": "2026-08-26T05:15:32.854921+00:00"
+  },
+  {
+   "dimension": "use_cases",
+   "term": "Microgravity‐assisted design and manufacturing of minimal surfaces",
+   "frequency": 1,
+   "verticals": [
+    "Aerospace & Defense"
+   ],
+   "first_seen": "2026-08-25T18:08:44.865255+00:00",
+   "last_seen": "2026-08-25T18:08:44.865255+00:00"
+  },
+  {
+   "dimension": "use_cases",
+   "term": "Modular Architecture",
+   "frequency": 1,
+   "verticals": [
+    "Healthcare"
+   ],
+   "first_seen": "2026-08-24T13:46:22.647856+00:00",
+   "last_seen": "2026-08-24T13:46:22.647856+00:00"
+  },
+  {
+   "dimension": "technologies",
+   "term": "NaaS",
+   "frequency": 1,
+   "verticals": [
+    "Finance & Insurance"
+   ],
+   "first_seen": "2026-08-21T12:31:06.990879+00:00",
+   "last_seen": "2026-08-21T12:31:06.990879+00:00"
+  },
+  {
+   "dimension": "technologies",
+   "term": "Network as a Service (NaaS)",
+   "frequency": 1,
+   "verticals": [
+    "Finance & Insurance"
+   ],
+   "first_seen": "2026-08-20T18:36:16.610092+00:00",
+   "last_seen": "2026-08-20T18:36:16.610092+00:00"
+  },
+  {
+   "dimension": "technologies",
+   "term": "Neuro‐Symbolic Kinodynamics",
+   "frequency": 1,
+   "verticals": [
+    "Public Sector"
+   ],
+   "first_seen": "2026-08-25T08:10:24.782005+00:00",
+   "last_seen": "2026-08-25T08:10:24.782005+00:00"
+  },
+  {
+   "dimension": "use_cases",
+   "term": "Oil base development in Diyarbakır",
+   "frequency": 1,
+   "verticals": [
+    "Energy"
+   ],
+   "first_seen": "2026-08-23T15:20:04.749757+00:00",
+   "last_seen": "2026-08-23T15:20:04.749757+00:00"
+  },
+  {
+   "dimension": "use_cases",
+   "term": "Open Data Reuse",
+   "frequency": 1,
+   "verticals": [
+    "Public Sector"
+   ],
+   "first_seen": "2026-08-21T12:31:35.716517+00:00",
+   "last_seen": "2026-08-21T12:31:35.716517+00:00"
+  },
+  {
+   "dimension": "technologies",
+   "term": "Open Source",
+   "frequency": 1,
+   "verticals": [
+    "Public Sector"
+   ],
+   "first_seen": "2026-08-20T14:19:57.246606+00:00",
+   "last_seen": "2026-08-20T14:19:57.246606+00:00"
+  },
+  {
+   "dimension": "use_cases",
+   "term": "Open Source Strategy",
+   "frequency": 1,
+   "verticals": [
+    "Public Sector"
+   ],
+   "first_seen": "2026-08-20T13:07:25.244019+00:00",
+   "last_seen": "2026-08-20T13:07:25.244019+00:00"
+  },
+  {
+   "dimension": "technologies",
+   "term": "Optical Communications",
+   "frequency": 1,
+   "verticals": [
+    "Manufacturing"
+   ],
+   "first_seen": "2026-08-25T18:04:19.001302+00:00",
+   "last_seen": "2026-08-25T18:04:19.001302+00:00"
+  },
+  {
+   "dimension": "technologies",
+   "term": "Physical AI",
+   "frequency": 1,
+   "verticals": [
+    "Manufacturing"
+   ],
+   "first_seen": "2026-08-20T13:06:31.206926+00:00",
+   "last_seen": "2026-08-20T13:06:31.206926+00:00"
+  },
+  {
+   "dimension": "technologies",
+   "term": "Post-Quantum Cryptography",
+   "frequency": 1,
+   "verticals": [
+    "Media & Entertainment"
+   ],
+   "first_seen": "2026-08-24T13:49:30.845952+00:00",
+   "last_seen": "2026-08-24T13:49:30.845952+00:00"
+  },
+  {
+   "dimension": "use_cases",
+   "term": "Predictive Maintenance",
+   "frequency": 1,
+   "verticals": [
+    "Manufacturing"
+   ],
+   "first_seen": "2026-08-20T14:16:30.209398+00:00",
+   "last_seen": "2026-08-20T14:16:30.209398+00:00"
+  },
+  {
+   "dimension": "use_cases",
+   "term": "Public Safety & Emergency Response",
+   "frequency": 1,
+   "verticals": [
+    "Public Sector"
+   ],
+   "first_seen": "2026-08-26T05:10:46.851844+00:00",
+   "last_seen": "2026-08-26T05:10:46.851844+00:00"
+  },
+  {
+   "dimension": "technologies",
+   "term": "Quantum Communications",
+   "frequency": 1,
+   "verticals": [
+    "Defense"
+   ],
+   "first_seen": "2026-08-22T14:54:07.339423+00:00",
+   "last_seen": "2026-08-22T14:54:07.339423+00:00"
+  },
+  {
+   "dimension": "technologies",
+   "term": "RAG-Enabled LLM Automation",
+   "frequency": 1,
+   "verticals": [
+    "Finance & Insurance"
+   ],
+   "first_seen": "2026-08-23T10:13:48.372868+00:00",
+   "last_seen": "2026-08-23T10:13:48.372868+00:00"
+  },
+  {
+   "dimension": "technologies",
+   "term": "Ramanomics",
+   "frequency": 1,
+   "verticals": [
+    "Finance & Insurance"
+   ],
+   "first_seen": "2026-08-25T08:10:21.069245+00:00",
+   "last_seen": "2026-08-25T08:10:21.069245+00:00"
+  },
+  {
+   "dimension": "use_cases",
+   "term": "Regulation",
+   "frequency": 1,
+   "verticals": [
+    "Wholesale"
+   ],
+   "first_seen": "2026-08-23T15:22:04.243797+00:00",
+   "last_seen": "2026-08-23T15:22:04.243797+00:00"
+  },
+  {
+   "dimension": "technologies",
+   "term": "Regulation",
+   "frequency": 1,
+   "verticals": [
+    "Wholesale"
+   ],
+   "first_seen": "2026-08-23T15:22:04.329904+00:00",
+   "last_seen": "2026-08-23T15:22:04.329904+00:00"
+  },
+  {
+   "dimension": "use_cases",
+   "term": "Regulation - 347/2013 / 2018/1999",
+   "frequency": 1,
+   "verticals": [
+    "Energy"
+   ],
+   "first_seen": "2026-08-25T08:11:19.588424+00:00",
+   "last_seen": "2026-08-25T08:11:19.588424+00:00"
+  },
+  {
+   "dimension": "use_cases",
+   "term": "Regulation 02006R2023-20080417",
+   "frequency": 1,
+   "verticals": [
+    "Manufacturing"
+   ],
+   "first_seen": "2026-08-23T06:52:17.055404+00:00",
+   "last_seen": "2026-08-23T06:52:17.055404+00:00"
+  },
+  {
+   "dimension": "use_cases",
+   "term": "Regulation Compliance",
+   "frequency": 1,
+   "verticals": [
+    "IT and Services"
+   ],
+   "first_seen": "2026-08-26T06:23:47.666686+00:00",
+   "last_seen": "2026-08-26T06:23:47.666686+00:00"
+  },
+  {
+   "dimension": "use_cases",
+   "term": "Regulation Compliance Automation",
+   "frequency": 1,
+   "verticals": [
+    "Public Sector"
+   ],
+   "first_seen": "2026-08-21T06:40:50.212188+00:00",
+   "last_seen": "2026-08-21T06:40:50.212188+00:00"
+  },
+  {
+   "dimension": "use_cases",
+   "term": "Regulation compliance for construction products",
+   "frequency": 1,
+   "verticals": [
+    "Construction"
+   ],
+   "first_seen": "2026-08-23T06:55:01.633782+00:00",
+   "last_seen": "2026-08-23T06:55:01.633782+00:00"
+  },
+  {
+   "dimension": "use_cases",
+   "term": "Regulation on retail payment services and PRIIPs",
+   "frequency": 1,
+   "verticals": [
+    "Retail"
+   ],
+   "first_seen": "2026-08-21T12:31:41.509271+00:00",
+   "last_seen": "2026-08-21T12:31:41.509271+00:00"
+  },
+  {
+   "dimension": "use_cases",
+   "term": "Regulatory Compliance for Construction Products",
+   "frequency": 1,
+   "verticals": [
+    "Construction"
+   ],
+   "first_seen": "2026-08-22T18:48:04.808866+00:00",
+   "last_seen": "2026-08-22T18:48:04.808866+00:00"
+  },
+  {
+   "dimension": "use_cases",
+   "term": "Regulatory Compliance for Medical Devices",
+   "frequency": 1,
+   "verticals": [
+    "Healthcare"
+   ],
+   "first_seen": "2026-08-23T06:53:00.487179+00:00",
+   "last_seen": "2026-08-23T06:53:00.487179+00:00"
+  },
+  {
+   "dimension": "use_cases",
+   "term": "Regulatory Compliance for Motor Vehicles",
+   "frequency": 1,
+   "verticals": [
+    "Automotive"
+   ],
+   "first_seen": "2026-08-25T08:12:04.459377+00:00",
+   "last_seen": "2026-08-25T08:12:04.459377+00:00"
+  },
+  {
+   "dimension": "use_cases",
+   "term": "Regulatory Data Compliance for Transport",
+   "frequency": 1,
+   "verticals": [
+    "Transportation and Logistics"
+   ],
+   "first_seen": "2026-08-21T13:31:24.953838+00:00",
+   "last_seen": "2026-08-21T13:31:24.953838+00:00"
+  },
+  {
+   "dimension": "use_cases",
+   "term": "Regulatory Data Governance",
+   "frequency": 1,
+   "verticals": [
+    "Natural Resources"
+   ],
+   "first_seen": "2026-08-26T05:15:06.448363+00:00",
+   "last_seen": "2026-08-26T05:15:06.448363+00:00"
+  },
+  {
+   "dimension": "use_cases",
+   "term": "Regulatory Reporting",
+   "frequency": 1,
+   "verticals": [
+    "Finance & Insurance"
+   ],
+   "first_seen": "2026-08-20T19:01:07.526627+00:00",
+   "last_seen": "2026-08-20T19:01:07.526627+00:00"
+  },
+  {
+   "dimension": "use_cases",
+   "term": "Regulatory Reporting Automation",
+   "frequency": 1,
+   "verticals": [
+    "Finance & Insurance"
+   ],
+   "first_seen": "2026-08-20T18:51:06.697870+00:00",
+   "last_seen": "2026-08-20T18:51:06.697870+00:00"
+  },
+  {
+   "dimension": "use_cases",
+   "term": "Regulatory Tariffs Impact",
+   "frequency": 1,
+   "verticals": [
+    "Manufacturing"
+   ],
+   "first_seen": "2026-08-23T15:08:51.471928+00:00",
+   "last_seen": "2026-08-23T15:08:51.471928+00:00"
+  },
+  {
+   "dimension": "use_cases",
+   "term": "Regulatory trade protectionism",
+   "frequency": 1,
+   "verticals": [
+    "Public Sector"
+   ],
+   "first_seen": "2026-08-23T06:52:24.107080+00:00",
+   "last_seen": "2026-08-23T06:52:24.107080+00:00"
+  },
+  {
+   "dimension": "use_cases",
+   "term": "Renewable Energy Project Financing",
+   "frequency": 1,
+   "verticals": [
+    "Energy"
+   ],
+   "first_seen": "2026-08-26T05:12:01.427659+00:00",
+   "last_seen": "2026-08-26T05:12:01.427659+00:00"
+  },
+  {
+   "dimension": "use_cases",
+   "term": "Retail Ordering Automation",
+   "frequency": 1,
+   "verticals": [
+    "Retail"
+   ],
+   "first_seen": "2026-08-24T13:45:56.754928+00:00",
+   "last_seen": "2026-08-24T13:45:56.754928+00:00"
+  },
+  {
+   "dimension": "use_cases",
+   "term": "Retail Payment Services",
+   "frequency": 1,
+   "verticals": [
+    "Retail"
+   ],
+   "first_seen": "2026-08-22T14:52:54.913747+00:00",
+   "last_seen": "2026-08-22T14:52:54.913747+00:00"
+  },
+  {
+   "dimension": "use_cases",
+   "term": "Retail Payment Services Regulation",
+   "frequency": 1,
+   "verticals": [
+    "Retail"
+   ],
+   "first_seen": "2026-08-21T13:30:05.256111+00:00",
+   "last_seen": "2026-08-21T13:30:05.256111+00:00"
+  },
+  {
+   "dimension": "technologies",
+   "term": "Retrieval Augmented Generation (RAG)",
+   "frequency": 1,
+   "verticals": [
+    "Finance & Insurance"
+   ],
+   "first_seen": "2026-08-23T13:13:43.218649+00:00",
+   "last_seen": "2026-08-23T13:13:43.218649+00:00"
+  },
+  {
+   "dimension": "technologies",
+   "term": "Robotics",
+   "frequency": 1,
+   "verticals": [
+    "Manufacturing"
+   ],
+   "first_seen": "2026-08-23T10:13:43.852596+00:00",
+   "last_seen": "2026-08-23T10:13:43.852596+00:00"
+  },
+  {
+   "dimension": "technologies",
+   "term": "Satellite-based IoT for logistics tracking",
+   "frequency": 1,
+   "verticals": [
+    "Transportation and Logistics"
+   ],
+   "first_seen": "2026-08-23T15:20:09.976055+00:00",
+   "last_seen": "2026-08-23T15:20:09.976055+00:00"
+  },
+  {
+   "dimension": "use_cases",
+   "term": "School shooting prevention",
+   "frequency": 1,
+   "verticals": [
+    "Defense"
+   ],
+   "first_seen": "2026-08-24T13:47:33.941785+00:00",
+   "last_seen": "2026-08-24T13:47:33.941785+00:00"
+  },
+  {
+   "dimension": "use_cases",
+   "term": "Secure IoT Sensor Data Aggregation",
+   "frequency": 1,
+   "verticals": [
+    "Aerospace & Defense"
+   ],
+   "first_seen": "2026-08-26T05:15:32.924162+00:00",
+   "last_seen": "2026-08-26T05:15:32.924162+00:00"
+  },
+  {
+   "dimension": "technologies",
+   "term": "Security Fabric",
+   "frequency": 1,
+   "verticals": [
+    "Defense"
+   ],
+   "first_seen": "2026-08-22T18:47:15.888668+00:00",
+   "last_seen": "2026-08-22T18:47:15.888668+00:00"
+  },
+  {
+   "dimension": "use_cases",
+   "term": "Shipping Disruption Management",
+   "frequency": 1,
+   "verticals": [
+    "Transportation and Logistics"
+   ],
+   "first_seen": "2026-08-22T18:46:50.347944+00:00",
+   "last_seen": "2026-08-22T18:46:50.347944+00:00"
+  },
+  {
+   "dimension": "use_cases",
+   "term": "Smart Cities",
+   "frequency": 1,
+   "verticals": [
+    "Public Sector"
+   ],
+   "first_seen": "2026-08-20T14:19:57.252374+00:00",
+   "last_seen": "2026-08-20T14:19:57.252374+00:00"
+  },
+  {
+   "dimension": "use_cases",
+   "term": "Smart Home Optimization",
+   "frequency": 1,
+   "verticals": [
+    "Energy"
+   ],
+   "first_seen": "2026-08-22T18:46:20.509350+00:00",
+   "last_seen": "2026-08-22T18:46:20.509350+00:00"
+  },
+  {
+   "dimension": "use_cases",
+   "term": "Smart Oilfields",
+   "frequency": 1,
+   "verticals": [
+    "Natural Resources"
+   ],
+   "first_seen": "2026-08-24T14:01:29.700708+00:00",
+   "last_seen": "2026-08-24T14:01:29.700708+00:00"
+  },
+  {
+   "dimension": "use_cases",
+   "term": "Social Commerce",
+   "frequency": 1,
+   "verticals": [
+    "Manufacturing"
+   ],
+   "first_seen": "2026-08-26T06:17:55.536326+00:00",
+   "last_seen": "2026-08-26T06:17:55.536326+00:00"
+  },
+  {
+   "dimension": "use_cases",
+   "term": "Social Media",
+   "frequency": 1,
+   "verticals": [
+    "Media & Entertainment"
+   ],
+   "first_seen": "2026-08-24T13:49:30.930757+00:00",
+   "last_seen": "2026-08-24T13:49:30.930757+00:00"
+  },
+  {
+   "dimension": "use_cases",
+   "term": "Sovereign AI",
+   "frequency": 1,
+   "verticals": [
+    "Defense"
+   ],
+   "first_seen": "2026-08-22T18:47:15.776531+00:00",
+   "last_seen": "2026-08-22T18:47:15.776531+00:00"
+  },
+  {
+   "dimension": "technologies",
+   "term": "Streaming ASR for media content",
+   "frequency": 1,
+   "verticals": [
+    "Media & Entertainment"
+   ],
+   "first_seen": "2026-08-25T18:07:57.738957+00:00",
+   "last_seen": "2026-08-25T18:07:57.738957+00:00"
+  },
+  {
+   "dimension": "use_cases",
+   "term": "Supply Chain Optimization",
+   "frequency": 1,
+   "verticals": [
+    "Fast Moving Consumer Goods"
+   ],
+   "first_seen": "2026-08-23T07:07:30.755481+00:00",
+   "last_seen": "2026-08-23T07:07:30.755481+00:00"
+  },
+  {
+   "dimension": "use_cases",
+   "term": "Supply Chain Planning",
+   "frequency": 1,
+   "verticals": [
+    "Fast Moving Consumer Goods"
+   ],
+   "first_seen": "2026-08-23T07:07:30.587374+00:00",
+   "last_seen": "2026-08-23T07:07:30.587374+00:00"
+  },
+  {
+   "dimension": "use_cases",
+   "term": "Supply Chain Visibility",
+   "frequency": 1,
+   "verticals": [
+    "IT and Services"
+   ],
+   "first_seen": "2026-08-23T07:07:47.863664+00:00",
+   "last_seen": "2026-08-23T07:07:47.863664+00:00"
+  },
+  {
+   "dimension": "use_cases",
+   "term": "Sustainability disclosures",
+   "frequency": 1,
+   "verticals": [
+    "Finance & Insurance"
+   ],
+   "first_seen": "2026-08-20T13:05:55.582590+00:00",
+   "last_seen": "2026-08-20T13:05:55.582590+00:00"
+  },
+  {
+   "dimension": "use_cases",
+   "term": "Sustainability Risks",
+   "frequency": 1,
+   "verticals": [
+    "Finance & Insurance"
+   ],
+   "first_seen": "2026-08-26T05:10:42.886045+00:00",
+   "last_seen": "2026-08-26T05:10:42.886045+00:00"
+  },
+  {
+   "dimension": "use_cases",
+   "term": "Sustainable Product Compliance",
+   "frequency": 1,
+   "verticals": [
+    "Fast Moving Consumer Goods"
+   ],
+   "first_seen": "2026-08-25T18:09:05.613604+00:00",
+   "last_seen": "2026-08-25T18:09:05.613604+00:00"
+  },
+  {
+   "dimension": "use_cases",
+   "term": "Sustainable Product Traceability",
+   "frequency": 1,
+   "verticals": [
+    "Fast Moving Consumer Goods"
+   ],
+   "first_seen": "2026-08-26T06:23:24.219429+00:00",
+   "last_seen": "2026-08-26T06:23:24.219429+00:00"
+  },
+  {
+   "dimension": "use_cases",
+   "term": "Sustainable Products",
+   "frequency": 1,
+   "verticals": [
+    "Fast Moving Consumer Goods"
+   ],
+   "first_seen": "2026-08-22T14:57:04.361940+00:00",
+   "last_seen": "2026-08-22T14:57:04.361940+00:00"
+  },
+  {
+   "dimension": "use_cases",
+   "term": "Temporary Work Site Safety Management",
+   "frequency": 1,
+   "verticals": [
+    "Construction"
+   ],
+   "first_seen": "2026-08-25T08:12:32.736909+00:00",
+   "last_seen": "2026-08-25T08:12:32.736909+00:00"
+  },
+  {
+   "dimension": "use_cases",
+   "term": "Transport data sovereignty regulations",
+   "frequency": 1,
+   "verticals": [
+    "Transportation and Logistics"
+   ],
+   "first_seen": "2026-08-23T15:20:09.883606+00:00",
+   "last_seen": "2026-08-23T15:20:09.883606+00:00"
+  },
+  {
+   "dimension": "use_cases",
+   "term": "Vehicle emissions and battery durability (Euro 7)",
+   "frequency": 1,
+   "verticals": [
+    "Automotive"
+   ],
+   "first_seen": "2026-08-22T14:54:32.366715+00:00",
+   "last_seen": "2026-08-22T14:54:32.366715+00:00"
+  },
+  {
+   "dimension": "use_cases",
+   "term": "Vehicle-To-Everything",
+   "frequency": 1,
+   "verticals": [
+    "Automotive"
+   ],
+   "first_seen": "2026-08-25T18:06:39.427697+00:00",
+   "last_seen": "2026-08-25T18:06:39.427697+00:00"
+  },
+  {
+   "dimension": "use_cases",
+   "term": "Vehicle-To-Everything (V2X)",
+   "frequency": 1,
+   "verticals": [
+    "Automotive"
+   ],
+   "first_seen": "2026-08-24T13:48:04.854860+00:00",
+   "last_seen": "2026-08-24T13:48:04.854860+00:00"
+  },
+  {
+   "dimension": "technologies",
+   "term": "Vehicle‐To‐Everything Programs",
+   "frequency": 1,
+   "verticals": [
+    "Automotive"
+   ],
+   "first_seen": "2026-08-26T05:13:12.772413+00:00",
+   "last_seen": "2026-08-26T05:13:12.772413+00:00"
+  },
+  {
+   "dimension": "use_cases",
+   "term": "Water stress management",
+   "frequency": 1,
+   "verticals": [
+    "Public Sector"
+   ],
+   "first_seen": "2026-08-23T10:12:42.163685+00:00",
+   "last_seen": "2026-08-23T10:12:42.163685+00:00"
+  }
+ ]
+}

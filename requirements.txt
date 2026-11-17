@@ -1,0 +1,29 @@
+# Core
+requests>=2.31
+pyyaml>=6.0
+python-dotenv>=1.0
+pydantic>=2.6
+numpy>=1.26
+pandas>=2.1
+scikit-learn>=1.4
+
+# LLM (OpenAI-compatible client; used for DeepSeek, OpenAI, Ollama alike)
+openai>=1.40
+
+# Embeddings — local by default, keeps the sovereign deployment option open (NFR-05)
+sentence-transformers>=2.7
+
+# Collateral. reportlab renders the PDFs; these two render the editable
+# formats pre-sales actually works in. Both are pure Python -- no LibreOffice,
+# no headless browser -- so the sovereign deployment option stays open (NFR-05).
+reportlab>=4.0
+python-pptx>=0.6.23
+python-docx>=1.1
+
+# UI
+streamlit>=1.33
+plotly>=5.20
+
+# Dev
+pytest>=8.0
+pymupdf>=1.24        # reads generated PDFs back in tests
