@@ -143,11 +143,6 @@ point at the requirements document. They are also carried in the code as
 comments, so any given behaviour can be traced back to the requirement that
 asked for it.
 
-## Team and contributions
-
-- **Stephane — Team Leader / Technical Architect** ([LinkedIn](https://www.linkedin.com/in/stepvda/))
-- **Uzair — Business Analyst** ([LinkedIn](https://www.linkedin.com/in/uzairsaeedkhan/))
-- **Lien — Documentation Specialist** ([LinkedIn](https://www.linkedin.com/in/lienkt0110/))
 
 ## Repository layout
 
