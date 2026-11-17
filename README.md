@@ -4,8 +4,19 @@ An evidence-first innovation radar that discovers specific business
 opportunities, explains why they matter, connects them to Orange Business
 capabilities, and turns them into actionable sales and portfolio material.
 
+> **Best-of-breed merge.** This repository merges five team projects for the
+> Orange Business opportunity-spaces use case into one application: a Python
+> (FastAPI) backend, a SQLite database and a React frontend. It is built on
+> [stepvda/orange](https://github.com/stepvda/orange) and adds the strongest
+> ideas from the four other projects: a What-if scoring simulator, a
+> side-by-side compare view, a live landscape map, a self-extending taxonomy
+> watchlist, an AI footprint ledger, CSV export and two new sources. See
+> [best-of selection](docs/best_of_selection.md) for what was taken from where
+> and why, and [data sources](docs/data_sources.md) for every source across all
+> five projects.
+
 MVP implementation of the requirements baseline in
-[`Orange_Innovation_Radar_Requirements_and_Approach.docx`](docs/Orange_Innovation_Radar_Requirements_and_Approach.docx).
+[`Orange_Innovation_Radar_Requirements_and_Approach.docx`](docs/reference/Orange_Innovation_Radar_Requirements_and_Approach.docx).
 
 ## What an opportunity space is
 
@@ -101,6 +112,8 @@ you need directly:
 
 | Document | Use it for |
 |---|---|
+| [Best-of selection](docs/best_of_selection.md) | Which functionality was taken from which of the five projects, and why |
+| [Data sources (all projects)](docs/data_sources.md) | Every data source across the five projects, and which ones are selected |
 | [Interview guide](docs/INTERVIEW_GUIDE.md) | Six presentation questions covering uniqueness, limitations, AI, trust, scoring, and tools |
 | [Getting started and architecture](docs/GETTING_STARTED_AND_ARCHITECTURE.md) | Setup, CLI workflow, pipeline stages, repository layout, and configuration |
 | [Implementation guide](docs/IMPLEMENTATION_GUIDE.md) | Evidence controls, role modes, workflow, outputs, Planner, UI, and performance |
@@ -116,10 +129,10 @@ you need directly:
 | [Architecture decisions](docs/DECISIONS.md) | Important technical and product trade-offs |
 | [Changelog](docs/CHANGELOG.md) | Features, fixes, and instructive defects |
 | [Project timeline](docs/TIMELINES.md) | Retrospective project plan, session log, and working patterns from the commit history |
-| [Final presentation](<docs/Orange_Innovation_Radar (final slides with speaker notes).pptx>) | Final project slides with speaker notes |
-| [Product demonstration](docs/Orange_Innovation_Radar_Demo_v2.mp4) | A narrated 28-minute walkthrough of the deployed application, in eleven chapters |
-| Product demonstration, in two parts | The same walkthrough split under 15 minutes each &mdash; [part one](docs/Orange_Innovation_Radar_Demo_v3_part1.mp4) (one opportunity space, end to end) and [part two](docs/Orange_Innovation_Radar_Demo_v3_part2.mp4) (the portfolio, and the machinery) |
-| [Solution brief](docs/Orange_innovation_radar_solution_3pager.pdf) | The whole argument on three pages, with live figures |
+| [Final presentation](https://github.com/stepvda/orange/).pptx>) | Final project slides with speaker notes |
+| [Product demonstration](https://github.com/stepvda/orange/) | A narrated 28-minute walkthrough of the deployed application, in eleven chapters |
+| Product demonstration, in two parts | The same walkthrough split under 15 minutes each &mdash; [part one](https://github.com/stepvda/orange/) (one opportunity space, end to end) and [part two](https://github.com/stepvda/orange/) (the portfolio, and the machinery) |
+| [Solution brief](https://github.com/stepvda/orange/) | The whole argument on three pages, with live figures |
 
 The full Functional Design Document, Technical Architecture, requirements
 baseline, presentations, and demonstrations are listed in the documentation

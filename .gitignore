@@ -63,3 +63,8 @@ dist/
 # prose in it is generated per space by the pipeline, so the file is a copy of an
 # output rather than a source.
 docs/tmp.txt
+
+# Frontend dependencies and build output (restored with `npm --prefix frontend install`)
+node_modules/
+frontend/dist/
+frontend/tsconfig.tsbuildinfo

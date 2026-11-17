@@ -83,6 +83,13 @@ def normalise(term: str) -> str:
     return text.strip(" .,:;'\"")
 
 
+def _display_path(path: Path) -> str:
+    try:
+        return str(path.relative_to(CONFIG_DIR.parent))
+    except ValueError:
+        return str(path)
+
+
 def slug(term: str) -> str:
     text = unicodedata.normalize("NFKD", term).encode("ascii", "ignore").decode()
     return re.sub(r"[^a-z0-9]+", "_", text.lower()).strip("_")[:48] or "term"
@@ -175,7 +182,7 @@ class TaxonomyWatch:
             counts[r["status"]] = counts.get(r["status"], 0) + 1
         counts["proposed"] = sum(1 for r in rows if r["status"] == "pending" and r["frequency"] >= self.threshold)
         return {"threshold": self.threshold, "counts": counts, "items": items,
-                "extensions_file": str(TAXONOMY_EXTENSIONS_FILE.relative_to(CONFIG_DIR.parent))}
+                "extensions_file": _display_path(TAXONOMY_EXTENSIONS_FILE)}
 
     # -- deciding --------------------------------------------------------
 
