@@ -14,27 +14,28 @@ import ScoreExplainModal from './components/ScoreExplain'
 import HowBuilt from './components/HowBuilt'
 import { LoginScreen, PasswordDialog } from './components/Login'
 import Explore from './components/Explore'
+import PortfolioBrowser from './components/Portfolio'
 import FootprintCard from './components/Footprint'
 import TaxonomyWatch from './components/TaxonomyWatch'
 import { useAnnounce } from './components/Announcer'
 import {
   IconAutoTheme, IconBars, IconBoard, IconCalendar, IconClipboard, IconCompass,
   IconCoverageGrid, IconDoc, IconList, IconMoon, IconPanel, IconPerson, IconRadar,
-  IconRoute, IconSignOut, IconSpark, IconSun, IconTag, IconWhitespace, IconExplore,
+  IconRoute, IconSignOut, IconSpark, IconSun, IconTag, IconWhitespace, IconExplore, IconMindmap,
 } from './components/Icons'
 import { formatEur } from './components/MarketSize'
 import { api, setSessionEndedHandler } from './api'
 import type { Coverage, FilterState, Meta, RadarView, SessionInfo, SortId, Topic, User } from './types'
 import { EMPTY_FILTERS } from './types'
 
-type Tab = 'radar' | 'list' | 'brief' | 'detail' | 'workflow' | 'analytics' | 'explore' | 'whitespace' | 'coverage'
+type Tab = 'radar' | 'list' | 'brief' | 'detail' | 'workflow' | 'analytics' | 'explore' | 'whitespace' | 'coverage' | 'portfolio'
 
 /** Radar and List are ONE view rendered two ways — the same ranked set, plotted
  *  against the two axes or laid out as rows — so they are boxed together the way
  *  the roles are. Which of the two you want is a rendering preference; the four
  *  after them are different questions about the corpus. */
 const RANKED_TABS: readonly Tab[] = ['radar', 'list'] as const
-const OTHER_TABS: readonly Tab[] = ['brief', 'analytics', 'explore', 'whitespace', 'coverage'] as const
+const OTHER_TABS: readonly Tab[] = ['brief', 'analytics', 'explore', 'whitespace', 'coverage', 'portfolio'] as const
 
 /* `workflow` is in neither: it is still a tab — it renders inside the reading
    layout like the rest — but it is READ beside Generate and Planner, because
@@ -44,11 +45,13 @@ const OTHER_TABS: readonly Tab[] = ['brief', 'analytics', 'explore', 'whitespace
 const TAB_LABELS: Record<Tab, string> = {
   radar: 'Radar', list: 'List', brief: 'Brief', detail: 'Detail',
   workflow: 'Workflow', analytics: 'Analytics', explore: 'Explore', whitespace: 'White space', coverage: 'Coverage',
+  portfolio: 'Portfolio',
 }
 
 const TAB_ICONS: Record<Tab, (props: { className?: string }) => JSX.Element> = {
   radar: IconRadar, list: IconList, brief: IconDoc, detail: IconPanel,
   workflow: IconBoard, analytics: IconBars, explore: IconExplore, whitespace: IconWhitespace, coverage: IconCoverageGrid,
+  portfolio: IconMindmap,
 }
 
 /** Role id -> mark. Keyed off the ids in `role_modes.yaml`; an id this does not
@@ -124,6 +127,10 @@ function loadLayout(): Layout {
  */
 const FILTER_KEYS = ['vertical', 'domain', 'persona', 'geography', 'market_cluster', 'horizon', 'competition'] as const
 
+function isPortfolioPath() {
+  return /\/portfolio\/?$/.test(window.location.pathname)
+}
+
 function initialFromUrl() {
   const params = new URLSearchParams(window.location.search)
   const theme = params.get('theme')
@@ -141,7 +148,9 @@ function initialFromUrl() {
     topic: params.get('topic'),
     explain: params.get('explain'),
     role: params.get('role'),
-    tab: params.get('tab') as Tab | null,
+    // The Portfolio browser has an address of its own, /portfolio, rather than
+    // ?tab=portfolio: it is the page people are sent to for the catalogue.
+    tab: (isPortfolioPath() ? 'portfolio' : params.get('tab')) as Tab | null,
     // A whole screen rather than a tab, so it takes the address bar the same
     // way: "open the generator with manufacturing selected" has to survive
     // being sent to someone.
@@ -370,7 +379,7 @@ function RadarApp({ user, minPasswordLength, onSignedOut, onUserChanged }: Radar
     const params = new URLSearchParams(window.location.search)
     selected ? params.set('topic', selected) : params.delete('topic')
     role === 'strategist' ? params.delete('role') : params.set('role', role)
-    tab === 'radar' ? params.delete('tab') : params.set('tab', tab)
+    tab === 'radar' || tab === 'portfolio' ? params.delete('tab') : params.set('tab', tab)
     generating ? params.set('screen', 'generate') : params.delete('screen')
     if (planner) params.set('view', 'planner')
     else if (fullscreen && selected) params.set('view', 'full')
@@ -383,7 +392,9 @@ function RadarApp({ user, minPasswordLength, onSignedOut, onUserChanged }: Radar
     filters.q ? params.set('q', filters.q) : params.delete('q')
     filters.has_brief ? params.set('has_brief', '1') : params.delete('has_brief')
     const query = params.toString()
-    window.history.replaceState(null, '', query ? `?${query}` : window.location.pathname)
+    const base = window.location.pathname.replace(/\/?portfolio\/?$/, '') || '/'
+    const path = tab === 'portfolio' ? `${base.replace(/\/$/, '')}/portfolio` : base
+    window.history.replaceState(null, '', query ? `${path}?${query}` : path)
   }, [selected, role, tab, theme, sort, filters, generating, fullscreen, planner])
 
   useEffect(() => {
@@ -1319,6 +1330,8 @@ function RadarApp({ user, minPasswordLength, onSignedOut, onUserChanged }: Radar
           )}
 
           {tab === 'explore' && <Explore selectedId={selected} onSelect={selectAndShow} />}
+
+          {tab === 'portfolio' && <PortfolioBrowser />}
 
           {tab === 'coverage' && coverage && (
             <div className="panel">

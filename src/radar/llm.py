@@ -63,6 +63,12 @@ class LLMResponse:
             raise LLMError(f"Model did not return valid JSON: {exc}\n---\n{self.text[:800]}") from exc
 
 
+def _is_reasoning_model(model: str) -> bool:
+    """OpenAI reasoning models (gpt-5*, o1/o3/o4*) take a different parameter set."""
+    name = model.lower().rsplit("/", 1)[-1]  # tolerate gateway prefixes like "openai/gpt-5.4"
+    return name.startswith("gpt-5") or (len(name) > 1 and name[0] == "o" and name[1].isdigit())
+
+
 class LLMClient:
     """Thin wrapper over an OpenAI-compatible chat completions endpoint."""
 
@@ -133,9 +139,13 @@ class LLMClient:
         kwargs: dict[str, Any] = {
             "model": model,
             "messages": [{"role": "system", "content": system}, {"role": "user", "content": user}],
-            "temperature": temperature,
-            "max_tokens": max_tokens,
         }
+        if _is_reasoning_model(model):
+            # GPT-5 / o-series reject `max_tokens` and any non-default temperature.
+            kwargs["max_completion_tokens"] = max_tokens
+        else:
+            kwargs["temperature"] = temperature
+            kwargs["max_tokens"] = max_tokens
         if json_mode:
             kwargs["response_format"] = {"type": "json_object"}
 

@@ -1,0 +1,122 @@
+/* Portfolio browser (/portfolio). SVP colours follow docs/SVP_queries_v2.docx,
+   Figure 1: the experience SVPs orange, the foundation blue, trust and
+   sustainability green, the Data & AI overlay purple. */
+:root {
+  --pf-exp: #c84b00;
+  --pf-base: #2e5478;
+  --pf-trust: #286e46;
+  --pf-data: #5f4682;
+  --pf-link: #c3c1b8;
+}
+@media (prefers-color-scheme: dark) {
+  :root:where(:not([data-theme="light"])) {
+    --pf-exp: #ff8a3d;
+    --pf-base: #7fb0e0;
+    --pf-trust: #6cc495;
+    --pf-data: #b59be0;
+    --pf-link: #4a4945;
+  }
+}
+:root[data-theme="dark"] {
+  --pf-exp: #ff8a3d;
+  --pf-base: #7fb0e0;
+  --pf-trust: #6cc495;
+  --pf-data: #b59be0;
+  --pf-link: #4a4945;
+}
+
+.portfolio .pf-pickers {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr)) auto;
+  gap: 12px;
+  align-items: end;
+  margin-bottom: 16px;
+}
+@media (max-width: 1100px) {
+  .portfolio .pf-pickers { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+@media (max-width: 640px) {
+  .portfolio .pf-pickers { grid-template-columns: 1fr; }
+}
+.pf-picker { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+.pf-picker > span { font-size: 11.5px; font-weight: 600; color: var(--text-secondary); text-transform: uppercase; letter-spacing: .03em; }
+.pf-picker select {
+  width: 100%; min-width: 0; font-size: 13px; padding: 6px 8px;
+  border: 1px solid var(--border-strong); border-radius: var(--radius-sm);
+  background: var(--surface-2); color: var(--text-primary);
+}
+.pf-picker select:disabled { opacity: .55; }
+.pf-clear { height: 32px; }
+
+.pf-map {
+  overflow: auto;
+  max-height: 70vh;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface-2);
+}
+.pf-map svg { display: block; }
+.pf-legend { font-size: 11.5px; color: var(--text-muted); margin: 0; padding: 8px 12px; border-top: 1px solid var(--border); }
+
+.pf-link { fill: none; stroke: var(--pf-link); stroke-width: 1.5; }
+.pf-link.on { stroke: var(--text-secondary); stroke-width: 2; }
+
+.pf-node { --c: var(--text-secondary); cursor: pointer; }
+.pf-node.svp-EX, .pf-node.svp-CX, .pf-node.svp-OX { --c: var(--pf-exp); }
+.pf-node.svp-DI { --c: var(--pf-base); }
+.pf-node.svp-DT, .pf-node.svp-SU { --c: var(--pf-trust); }
+.pf-node.svp-DA { --c: var(--pf-data); }
+
+.pf-box { fill: var(--surface-1); stroke: var(--c); stroke-width: 1.2; }
+.pf-bar { fill: var(--c); }
+.pf-label { font-size: 12px; fill: var(--text-primary); font-family: var(--sans); }
+.pf-count { font-size: 11px; fill: var(--text-muted); font-family: var(--mono); }
+
+.pf-node.k-root .pf-box { fill: var(--text-primary); stroke: var(--text-primary); }
+.pf-node.k-root .pf-label { fill: var(--surface-2); font-weight: 600; }
+.pf-node.k-svp .pf-box { fill: var(--c); stroke: var(--c); }
+.pf-node.k-svp .pf-label { fill: var(--surface-2); font-weight: 600; }
+.pf-node.k-svp .pf-count { fill: var(--surface-2); opacity: .85; }
+.pf-node.k-vp .pf-label { font-weight: 600; }
+.pf-node.k-more { cursor: default; }
+.pf-node.k-more[role="button"] { cursor: pointer; }
+.pf-node.k-more .pf-box { fill: none; stroke-dasharray: 4 3; stroke: var(--border-strong); }
+.pf-node.k-more .pf-label { fill: var(--text-muted); font-style: italic; }
+
+.pf-node.muted { opacity: .5; }
+.pf-node.sel .pf-box { stroke-width: 3; }
+.pf-node.sel:not(.k-svp):not(.k-root) .pf-box { fill: color-mix(in srgb, var(--c) 14%, var(--surface-1)); }
+.pf-node:hover .pf-box, .pf-node:focus-visible .pf-box { stroke-width: 2.6; }
+.pf-node:focus { outline: none; }
+.pf-node:focus-visible .pf-box { stroke: var(--accent); }
+
+.pf-details {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 12px;
+  margin-top: 16px;
+}
+.pf-details section {
+  border: 1px solid var(--border); border-radius: var(--radius-sm);
+  padding: 10px 12px; background: var(--surface-2); font-size: 13px;
+}
+.pf-details h3 { font-size: 13.5px; margin: 0 0 6px; }
+.pf-details p { margin: 0 0 6px; }
+.pf-muted { color: var(--text-muted); font-size: 12px; }
+.pf-flag { color: var(--status-warning); font-size: 12px; font-weight: 600; }
+.pf-note { font-size: 11.5px; color: var(--text-muted); margin: 14px 0 0; }
+.pf-mono { font-family: var(--mono); font-size: 12px; }
+
+/* Placed by a CRM product family rather than by the curation. */
+.pf-node.crm .pf-box { stroke-dasharray: 2 2; }
+.pf-crm-tag { font-size: 9.5px; font-weight: 700; letter-spacing: .04em; fill: var(--c); font-family: var(--sans); }
+.pf-crm {
+  border-top: 1px dashed var(--border-strong); margin-top: 8px; padding-top: 6px;
+}
+.pf-crm h4 {
+  font-size: 11px; text-transform: uppercase; letter-spacing: .04em;
+  color: var(--text-secondary); margin: 0 0 4px;
+}
+.pf-crm dl { display: grid; grid-template-columns: auto 1fr; gap: 2px 10px; margin: 0; font-size: 12px; }
+.pf-crm dt { color: var(--text-muted); }
+.pf-crm dd { margin: 0; font-variant-numeric: tabular-nums; }

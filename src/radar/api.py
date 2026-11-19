@@ -186,6 +186,16 @@ except Exception as exc:  # noqa: BLE001 — same rule as the schema call above
     bootstrap.STARTUP_ERROR = bootstrap.STARTUP_ERROR or f"{type(exc).__name__}: {exc}"
     log.error("Could not mount the explore router: %s", exc)
 
+# The Portfolio browser (/portfolio): SVP > value proposition > offer > customer
+# reference, built from the Expresso crawl plus config/portfolio.yaml.
+try:
+    from .portfolio_api import build_router as build_portfolio_router
+
+    app.include_router(build_portfolio_router())
+except Exception as exc:  # noqa: BLE001 — same rule as the schema call above
+    bootstrap.STARTUP_ERROR = bootstrap.STARTUP_ERROR or f"{type(exc).__name__}: {exc}"
+    log.error("Could not mount the portfolio router: %s", exc)
+
 
 def _llm() -> LLMClient:
     """Built per request rather than at import: a missing API key should fail

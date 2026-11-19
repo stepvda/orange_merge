@@ -27,6 +27,7 @@ import argparse
 import datetime as dt
 import json
 import logging
+import os
 import sys
 
 from .config import get_config
@@ -522,7 +523,11 @@ def main(argv: list[str] | None = None) -> int:
             from .brief import brief_path
             path = brief_path(db, targets[0])
             if path:
-                subprocess.run(["open", str(path)], check=False)
+                if sys.platform == "win32":
+                    os.startfile(str(path))
+                else:
+                    opener = "open" if sys.platform == "darwin" else "xdg-open"
+                    subprocess.run([opener, str(path)], check=False)
         return 0
 
     read = ReadModel(cfg, db)

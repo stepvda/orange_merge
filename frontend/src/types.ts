@@ -1071,3 +1071,106 @@ export interface WatchList {
   extensions_file: string
   domains: { id: string; label: string }[]
 }
+
+/* --- Portfolio browser (/portfolio) ------------------------------------- */
+
+/** Opportunity totals for one SVP from the Salesforce extract (amounts in euro). */
+export interface PortfolioCrmSvp {
+  /** The CRM's name for the SVP (e.g. "Analytics and AI" for Data & AI). */
+  name: string
+  opportunities: number
+  won: number
+  lost: number
+  won_tcv_eur: number
+  open: number
+  open_tcv_eur: number
+  win_rate: number | null
+}
+
+/** The Salesforce account matched to a customer reference by company name. */
+export interface PortfolioCrmAccount {
+  name: string
+  type: string
+  industry: string
+  region: string
+  country: string
+  segment: string
+  won: number
+  won_tcv_eur: number
+  lost: number
+  open: number
+  open_tcv_eur: number
+  last_won: string | null
+}
+
+export interface PortfolioSvp {
+  key: string
+  name: string
+  role: string
+  summary: string
+  value_propositions: string[]
+  crm?: PortfolioCrmSvp
+}
+
+export interface PortfolioValueProposition {
+  id: string
+  svp: string
+  name: string
+  description: string
+  ideas: string[]
+  offers: string[]
+  /** The subset of `offers` placed here by a CRM product family, not by the curation. */
+  crm_offers?: string[]
+  /** Offers the curated list names that no Expresso offer matched. */
+  unmatched_offers: string[]
+  /** False for the per-SVP "Other offers" bucket. */
+  curated: boolean
+}
+
+export interface PortfolioOffer {
+  id: string
+  name: string
+  headline: string
+  languages: string[]
+  svps: string[]
+  svps_secondary: string[]
+  url: string
+  references: string[]
+  /** CRM catalogue products matched to this offer by name. */
+  crm_products?: string[]
+}
+
+export interface PortfolioReference {
+  id: string
+  customer: string
+  project: string
+  headline: string
+  sectors: string[]
+  regions: string[]
+  signed: string | null
+  language: string | null
+  communication_agreement: boolean
+  svps: string[]
+  offers: string[]
+  url: string
+  crm?: PortfolioCrmAccount
+}
+
+export interface Portfolio {
+  version: string
+  generated_at: string
+  source: string
+  svps: PortfolioSvp[]
+  value_propositions: PortfolioValueProposition[]
+  offers: Record<string, PortfolioOffer>
+  references: Record<string, PortfolioReference>
+  /** Present when a Salesforce extract was imported (python -m radar.crm). */
+  crm?: {
+    source: string
+    extracted: string | null
+    offers_placed: number
+    references_matched: number
+    svps_with_figures: number
+  } | null
+  counts: Record<string, number>
+}

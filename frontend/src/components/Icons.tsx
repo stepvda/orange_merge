@@ -308,3 +308,10 @@ export const IconExplore = svg(<>
   <circle cx="6" cy="16" r="1.8" /><circle cx="10.5" cy="9" r="1.8" /><circle cx="15" cy="13.5" r="1.8" />
   <circle cx="18.5" cy="6.5" r="1.8" /><path d="M3.5 20.5h17M3.5 20.5v-17" />
 </>)
+
+/** Portfolio — a mind map: one root branching into a hierarchy. */
+export const IconMindmap = svg(<>
+  <rect x="2.5" y="10" width="6" height="4" rx="1.2" /><rect x="15.5" y="3.5" width="6" height="4" rx="1.2" />
+  <rect x="15.5" y="10" width="6" height="4" rx="1.2" /><rect x="15.5" y="16.5" width="6" height="4" rx="1.2" />
+  <path d="M8.5 12h3.5M12 5.5v13M12 5.5h3.5M12 12h3.5M12 18.5h3.5" />
+</>)

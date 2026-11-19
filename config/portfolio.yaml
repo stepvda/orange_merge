@@ -1,0 +1,388 @@
+# Orange Business portfolio structure for the Portfolio browser (/portfolio).
+#
+# Expresso tags offers and customer references with an SVP, and customer references with the
+# offers they used, but it never says which offers make up a value proposition. That middle
+# link is curated here, from docs/SVP_queries_v2.docx: each value proposition lists the Orange
+# offers its opportunity ideas would be won with. Names are matched to Expresso offers by name
+# (accents, case and punctuation ignored); a name that matches nothing is shown as unmatched.
+# Offers tagged with an SVP that no value proposition claims appear under "Other offers".
+#
+# crm_svp / crm_families tie this structure to the Salesforce extract (data/crm_portfolio.json,
+# built by `python -m radar.crm`): crm_svp is the CRM's name for the SVP (its opportunity
+# figures are shown on the SVP), and crm_families are the CRM product families whose products
+# are placed in that value proposition when they match an Expresso offer by name.
+
+version: 2026-11-v2
+svps:
+- key: DI
+  name: Digital Infrastructure
+  crm_svp: Digital Infrastructure
+  role: Foundation
+  summary: The network, cloud and security foundation that every other SVP is built on.
+  expresso_tags:
+  - 653a4008919c53b20bd0e4a1
+  - 653a4008919c53527ad0e4a0
+  value_propositions:
+  - name: Next Gen Secured Connectivity
+    crm_families:
+    - Next Gen Secured Connectivity
+    - NextGen Secured Connectivity
+    description: 'Connecting every site, user and device securely: SD-WAN, SASE, Wi-Fi and satellite backup.'
+    ideas:
+    - DI-1
+    - DI-3
+    - DI-5
+    - DI-11
+    offers:
+    - Flexible SD-WAN
+    - Xtended-SOC
+    - CheckPulse
+    - Micro-SOC
+    - Flexible LAN
+    - Managed Secure Access
+    - Internet Satellite
+    - Evolution Platform
+    - Network Connect
+  - name: Trusted Cloud Orchestration
+    crm_families:
+    - Trusted Cloud Orchestration
+    description: Running applications and data across private, public and sovereign clouds and the edge as one managed
+      estate.
+    ideas:
+    - DI-2
+    - DI-4
+    - DI-6
+    - DI-8
+    offers:
+    - Cloud Avenue & SecNumCloud
+    - Bleu
+    - Trusted Connectivity
+    - Trusted Customer Edge Computing
+    - Mobile Private Networks
+    - Cloud Avenue
+    - Cloud Xtended
+    - VMware-alternatives folder
+    - Cloud Avenue GPU Services
+    - AI Model Center
+  - name: Power of 3 observability (with Cisco and Splunk)
+    description: Seeing and fixing problems across network, cloud and applications from one view.
+    ideas:
+    - DI-7
+    offers:
+    - CheckPulse Integrated Observability
+    - Power of 3
+  - name: Frontier AI Security
+    description: Defending against attacks that use advanced AI.
+    ideas:
+    - DI-10
+    offers:
+    - Frontier AI Security
+    - Xtended-SOC
+  - name: Quantum-safe networks
+    description: Protecting today's data against tomorrow's quantum computers.
+    ideas:
+    - DI-9
+    offers:
+    - Orange Quantum Defender
+- key: OX
+  name: Operational Experience
+  crm_svp: Operational Experience
+  role: 'Experience: operations'
+  summary: Bringing IT, connectivity and AI to factories, plants, vehicles and connected products.
+  expresso_tags:
+  - 653a4008919c53266fd0e49d
+  - 653a4008919c53413cd0e49c
+  value_propositions:
+  - name: Secured IT & OT infrastructure
+    description: Private mobile networks, industrial networks and OT cybersecurity for sites.
+    ideas:
+    - OX-1
+    - OX-2
+    offers:
+    - Mobile Private Networks
+    - Industrial LAN
+    - Industrial System Cybersecurity
+  - name: Smart Manufacturing & Operations
+    crm_families:
+    - Smart Manufacturing & Operations
+    description: 'Use cases that improve how sites run: quality inspection, predictive maintenance, automation and
+      remote expert help.'
+    ideas:
+    - OX-3
+    - OX-4
+    - OX-8
+    - OX-9
+    - OX-10
+    offers:
+    - Computer Vision - Développements & Intégration
+    - Computer Vision - Sureté et Sécurité
+    - Trusted Customer Edge Computing
+    - Smart Data Bridge
+    - Live Objects
+    - Mobile Private Networks
+    - Edge Computing
+    - XpertEye
+    - Manifest by Taqtile
+    - Frontline Workers Management
+    - Frontline Worker Talk (International Push to X)
+  - name: Industrial on-prem & hybrid infrastructure
+    description: One blueprint to train AI in the cloud and run it on site.
+    ideas:
+    - OX-5
+    offers:
+    - Private AI Factory for Industry
+    - Cloud Avenue
+  - name: Smart Connected Products
+    crm_families:
+    - Smart Connected Products
+    description: 'Connecting and tracking the products a company sells: cars, machines, tools.'
+    ideas:
+    - OX-6
+    - OX-7
+    offers:
+    - IoT Managed Global Connectivity
+    - Connected Car VP
+    - Smart tracking
+    - smart tracking
+    - IoT Connect Advanced
+- key: EX
+  name: Employee Experience
+  crm_svp: Employee Experience
+  role: 'Experience: employees'
+  summary: Tools that help employees work together and get more done, including generative AI.
+  expresso_tags:
+  - 653a4008919c533beed0e49f
+  - 653a4008919c531bc4d0e49e
+  value_propositions:
+  - name: Employee Success Suite
+    crm_families:
+    - Employee Success Suite
+    description: Managed calling, meetings and collaboration, plus device and experience management.
+    ideas:
+    - EX-1
+    - EX-6
+    - EX-8
+    offers:
+    - Business Together with Microsoft
+    - Workplace Together [Webex]
+    - Business Talk
+    - Employee Experience Management
+    - Flexible Collaboration
+    - Orange Lease
+    - Smart Office
+    - Microsoft Teams Room MTR
+    - Digital Building
+  - name: GenAI Empowerment of Workforce
+    crm_families:
+    - GenAI Empowered Workforce
+    description: Safe, governed generative AI for every employee.
+    ideas:
+    - EX-2
+    - EX-4
+    - EX-7
+    offers:
+    - Live Intelligence
+    - PersonalizedGPT
+    - Microsoft Purview services
+    - Success Suite
+  - name: Positive Agentic AI
+    description: AI agents that take on tasks while humans stay in control.
+    ideas:
+    - EX-3
+    offers:
+    - Positive Agentic AI CVP
+    - Live Intelligence
+    - Cloud Avenue GPU Services
+  - name: Frontline Workers Suite
+    crm_families:
+    - Frontline Workers
+    description: Communication and safety tools for staff who don't sit at a desk.
+    ideas:
+    - EX-5
+    offers:
+    - Frontline Workers Management
+    - Frontline Worker Talk (International Push to X)
+    - Team Connect
+    - Nomadia Protect
+- key: CX
+  name: Customer Experience
+  crm_svp: Customer Experience
+  role: 'Experience: customers'
+  summary: Making every contact between a company and its customers smooth, with the right mix of people and AI.
+  expresso_tags:
+  - 653a4008919c53e7cdd0e49b
+  - 653a4008919c530d39d0e49a
+  value_propositions:
+  - name: Cognitive Omnichannel CX
+    crm_families:
+    - Cognitive Omnichannel
+    description: One cloud contact centre across all channels.
+    ideas:
+    - CX-1
+    offers:
+    - Unified Engagement Suite - Genesys
+    - Unified Engagement Suite NICE
+    - Flexible Contact Center
+  - name: AI for Human Interaction at the Right Time
+    description: Voice bots, agent assistants and automation that know when to hand over to a person.
+    ideas:
+    - CX-2
+    - CX-3
+    - CX-5
+    - CX-7
+    offers:
+    - Callbot
+    - Guide Vocal - Voice AI Agent
+    - Conversational Bots
+    - Live Intelligence
+    - Intelligent Together
+    - LiveMemo
+    - Citizen Engagement
+    - Guide Vocal
+  - name: Digital Omnipresence & Data Value Creation
+    description: 'Reaching customers on every channel and using data to personalise contact: trusted calls, messaging,
+      customer data platforms.'
+    ideas:
+    - CX-4
+    - CX-6
+    - CX-8
+    offers:
+    - CRM Service Suite
+    - Customer Experience Together - Sprinklr
+    - Appels de confiance
+    - Branded Calling
+    - Live Identity
+    - Business Together CPaaS
+    - Contact Everyone
+- key: DT
+  name: Digital Trust
+  role: 'Differentiator: trust'
+  summary: Giving customers measurable control over where their data lives, who can reach it and how resilient their
+    services are.
+  expresso_tags:
+  - 653a4008919c53c9fad0e499
+  - 653a4008919c5353a4d0e498
+  value_propositions:
+  - name: Trusted Connectivity
+    description: Keeping data protected and flowing while it travels between sites.
+    ideas:
+    - DT-2
+    offers:
+    - Trusted Connectivity
+    - Evolution Platform
+  - name: Trusted Cloud (Cloud de confiance)
+    description: Qualified, sovereign hosting for sensitive data.
+    ideas:
+    - DT-1
+    - DT-7
+    offers:
+    - Cloud Avenue & SecNumCloud
+    - Bleu
+    - Cloud Avenue Dynamic
+  - name: End-to-end Cybersecurity
+    description: Detection, response and identity protection, including against future quantum threats.
+    ideas:
+    - DT-6
+    - DT-8
+    offers:
+    - Xtended-SOC
+    - Dynamic-CISO
+    - Etre en conformité avec la Directive NIS2
+    - Flexible Identity Authentication
+    - Live Identity Wallet
+    - Quantum Defender
+  - name: Trusted agentic AI (IA agentique de confiance)
+    description: AI agents run under trusted conditions. Its ideas are covered under Employee Experience (EX-2,
+      EX-3) and Data & AI.
+    ideas: []
+    offers: []
+  - name: Defence & Security
+    description: Networks, cloud and AI for armed forces and internal security.
+    ideas:
+    - DT-3
+    - DT-4
+    offers:
+    - Direction Défense & Sécurité
+    - Cloud Avenue GPU Services
+    - Mobile Private Networks
+    - Critical-network offers (STORM reference)
+  - name: Health
+    description: Trusted hosting and AI for hospitals and health data.
+    ideas:
+    - DT-5
+    offers:
+    - Cloud Avenue
+    - Live Intelligence
+- key: SU
+  name: Sustainability
+  role: 'Ambition: sustainability'
+  summary: Helping customers cut the energy use and carbon footprint of their IT and their operations.
+  expresso_tags:
+  - 653a4008919c53b030d0e497
+  - 653a4008919c5327c7d0e496
+  value_propositions:
+  - name: Green IT
+    description: Lower-impact networks and devices, from purchase to recycling.
+    ideas:
+    - SU-2
+    - SU-5
+    offers:
+    - Smart Power Delivery
+    - Refresh Finder
+    - ReBack
+    - Orange Lease
+    - Orange Reprise
+  - name: IT for Green
+    description: Using IoT and data to measure and cut energy use and emissions.
+    ideas:
+    - SU-1
+    - SU-3
+    - SU-4
+    - SU-7
+    offers:
+    - Sustainability Data Hub
+    - ESGenius
+    - Smart Office
+    - Digital Building
+    - Smart Building B.O.S
+    - Smart Eco-energy
+    - Live Objects
+    - LoRaWAN
+    - LTE-M
+  - name: Numérique Responsable (responsible digital)
+    description: Consulting to build a responsible-digital strategy, mainly for French public bodies.
+    ideas:
+    - SU-6
+    offers:
+    - Numérique Responsable consulting
+- key: DA
+  name: Data & AI
+  crm_svp: Analytics and AI
+  role: 'Overlay: data & AI'
+  summary: 'Not a separate SVP but a thread through all of them: data, analytics and AI, used safely.'
+  expresso_tags:
+  - 653a4008919c53a0e1d0e495
+  - 653a4008919c530376d0e494
+  value_propositions:
+  - name: Sovereign generative AI and compute
+    description: AI models and GPU capacity under European control.
+    ideas:
+    - DA-1
+    - DA-2
+    offers:
+    - Cloud Avenue GPU
+    - AI Model Center
+    - Live Intelligence
+  - name: Data and analytics
+    description: Turning network and business data into insight.
+    ideas:
+    - DA-3
+    offers:
+    - Flux Vision
+  - name: Computer vision
+    description: Video analytics for safety and operations.
+    ideas:
+    - DA-4
+    offers:
+    - VMS
+    - Computer Vision

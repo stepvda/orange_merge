@@ -1,4 +1,5 @@
 import type {
+  Portfolio,
   BriefMeta, CollateralItem, Competition, CompetitorAnalysis, Coverage, DeletionImpact,
   DeletionReport, PreSalesIndex,
   FilterState, GenerationConstraints, GenerationJob,
@@ -274,6 +275,9 @@ export const api = {
   landscape: () => get<Landscape>('/explore/landscape'),
   footprint: () => get<FootprintReport>('/analytics/footprint'),
   watchlist: (status?: string) => get<WatchList>('/taxonomy/watchlist', { status }),
+
+  /** The Portfolio browser: SVP > value proposition > offer > customer reference. */
+  portfolio: () => get<Portfolio>('/portfolio'),
   watchDecision: (id: number, body: Record<string, unknown>) =>
     post<WatchItem>(`/taxonomy/watchlist/${id}/decision`, body),
 

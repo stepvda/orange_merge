@@ -68,3 +68,6 @@ docs/tmp.txt
 node_modules/
 frontend/dist/
 frontend/tsconfig.tsbuildinfo
+
+# macOS metadata
+._*
