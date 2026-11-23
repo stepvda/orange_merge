@@ -100,6 +100,39 @@ def test_a_success_clears_the_failure_history():
     assert "api.example.com" not in session.tripped
 
 
+class _FakeResponse:
+    def __init__(self, status, retry_after=None):
+        self.status_code = status
+        self.headers = {"Retry-After": str(retry_after)} if retry_after is not None else {}
+
+
+def test_a_retry_after_beyond_the_cap_gives_up_on_the_host_at_once(monkeypatch):
+    """OpenAlex once answered 429 with Retry-After: 38054 and the refresh slept
+    10.5 hours. A wait beyond the cap gives the host up for the refresh, without
+    sleeping and without further requests."""
+    import radar.connectors.base as base
+    calls, sleeps = [], []
+    session = HttpSession("test", max_retry_after=120, min_interval=0.0)
+    monkeypatch.setattr(session.session, "request",
+                        lambda *a, **k: calls.append(1) or _FakeResponse(429, 38054))
+    monkeypatch.setattr(base.time, "sleep", lambda s: sleeps.append(s))
+    assert session.get("https://api.openalex.org/works") is None
+    assert len(calls) == 1 and not [s for s in sleeps if s > 1]
+    assert "api.openalex.org" in session.tripped
+    assert session.get("https://api.openalex.org/works") is None and len(calls) == 1
+
+
+def test_a_retry_after_within_the_cap_is_honoured(monkeypatch):
+    import radar.connectors.base as base
+    responses = iter([_FakeResponse(429, 30), _FakeResponse(200)])
+    sleeps = []
+    session = HttpSession("test", max_retry_after=120, min_interval=0.0)
+    monkeypatch.setattr(session.session, "request", lambda *a, **k: next(responses))
+    monkeypatch.setattr(base.time, "sleep", lambda s: sleeps.append(s))
+    assert session.get("https://api.example.com/x").status_code == 200
+    assert 30 in sleeps and "api.example.com" not in session.tripped
+
+
 # ---------------------------------------------------------------------------
 # Concurrency (Ingestor.collect runs connectors in a thread pool)
 # ---------------------------------------------------------------------------

@@ -824,3 +824,40 @@ terms:
     es: [huella de carbono, informe de sostenibilidad]
     it: [impronta di carbonio, rendicontazione di sostenibilità]
     nl: [koolstofvoetafdruk, duurzaamheidsrapportage]
+  # ---------- Employee and customer experience technologies (2026-11-23) ----------
+  unified_communications:
+    fr: [communications unifiées, téléphonie cloud, outils de collaboration]
+    de: [unified communications, cloud-telefonie, kollaborationsplattform]
+    es: [comunicaciones unificadas, telefonía en la nube, herramientas de colaboración]
+    it: [comunicazioni unificate, telefonia cloud, strumenti di collaborazione]
+    nl: [unified communications, cloudtelefonie, samenwerkingsplatform]
+  contact_center_platform:
+    fr: [centre de contact cloud, centre d'appels omnicanal, relation client omnicanale]
+    de: [cloud-contact-center, omnichannel-kundenservice]
+    es: [centro de contacto en la nube, atención al cliente omnicanal]
+    it: [contact center in cloud, assistenza clienti omnicanale]
+    nl: [cloud contactcenter, omnichannel klantenservice]
+  endpoint_management:
+    fr: [gestion de flotte mobile, gestion des terminaux, poste de travail géré]
+    de: [endgeräteverwaltung, mobile-device-management, arbeitsplatz-management]
+    es: [gestión de dispositivos móviles, gestión de terminales]
+    it: [gestione dei dispositivi mobili, gestione degli endpoint]
+    nl: [beheer van mobiele apparaten, werkplekbeheer]
+  cpaas_messaging:
+    fr: [messagerie professionnelle, sms professionnel, appel authentifié]
+    de: [business-messaging, sms-versand für unternehmen]
+    es: [mensajería empresarial, sms empresarial]
+    it: [messaggistica aziendale, sms aziendali]
+    nl: [zakelijke berichten, zakelijke sms]
+  push_to_talk:
+    fr: [talkie-walkie numérique, communications critiques, travailleur isolé]
+    de: [push-to-talk, digitalfunk, alleinarbeiterschutz]
+    es: [pulsar para hablar, comunicaciones críticas, trabajador aislado]
+    it: [push-to-talk, comunicazioni critiche, lavoratore isolato]
+    nl: [push-to-talk, kritieke communicatie, alleenwerker]
+  customer_data_platform:
+    fr: [plateforme de données clients, connaissance client]
+    de: [kundendatenplattform]
+    es: [plataforma de datos de clientes]
+    it: [piattaforma dati clienti]
+    nl: [klantdataplatform]

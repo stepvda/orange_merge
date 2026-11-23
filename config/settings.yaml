@@ -77,6 +77,14 @@ curation:
   portfolio_overlap:
     enabled: true
     similarity_threshold: 0.70
+  # Generate screen, SVP filter (radar.svp). The SVPs overlap, so a candidate
+  # is accepted when a requested SVP is among its `accept_rank` closest (on 28
+  # typical statements: right SVP first 20 times, in the top two 25 times).
+  # Clusters are read in order of how many of their signals sit closest to a
+  # requested SVP; clusters with fewer than `min_cluster_signals` are skipped.
+  svp_constraint:
+    accept_rank: 2
+    min_cluster_signals: 2
   # Statement length guards against both slogans and paragraphs.
   statement_min_chars: 40
   statement_max_chars: 180
@@ -193,6 +201,10 @@ ingestion:
   request_timeout_seconds: 45
   max_retries: 3
   retry_backoff_seconds: 5
+  # Longest Retry-After a source may ask for. A source asking for more (a spent
+  # daily quota: OpenAlex once asked for 10.5 hours) is skipped for the rest of
+  # the refresh instead of stalling it.
+  max_retry_after_seconds: 120
   # Stored extract length. Storage is by reference plus short extract, never a
   # full mirror of source content (DR-08).
   max_extract_chars: 1200

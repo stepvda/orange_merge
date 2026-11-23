@@ -424,3 +424,22 @@ def test_every_generated_cpv_code_is_eight_digits():
     for group in build_cpv_groups(cfg, {"min_code_digits": 8}):
         for code in group["cpv"]:
             assert len(code) == 8 and code.isdigit(), f"{group['label']}: bad CPV {code!r}"
+
+
+def test_a_query_cap_keeps_every_business_domain():
+    """A cap used to keep the first N terms in file order, so 18 of 19 sources
+    never searched for an employee- or customer-experience term. Whatever the
+    cap keeps must now sample every domain the use cases belong to."""
+    cfg = get_config()
+    labels = taxonomy_terms(cfg, {"vocabularies": ["use_cases"]})[:12]
+    by_label = {u.label: (u.get("domains") or [None])[0] for u in cfg.use_cases}
+    assert {by_label[t] for t in labels} == {d.id for d in cfg.domains}
+
+
+def test_a_query_cap_spreads_across_the_technology_file():
+    """Technologies carry no domain; a cap of 8 must not be eight connectivity terms."""
+    cfg = get_config()
+    ids = [t.id for t in cfg.technologies]
+    position = {t.label: ids.index(t.id) for t in cfg.technologies}
+    kept = [position[t] for t in taxonomy_terms(cfg, {"vocabularies": ["technologies"]})[:8]]
+    assert max(kept) >= len(ids) * 0.75 and min(kept) == 0

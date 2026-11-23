@@ -79,6 +79,7 @@ class Ingestor:
             timeout=ing["request_timeout_seconds"],
             max_retries=ing["max_retries"],
             backoff=ing["retry_backoff_seconds"],
+            max_retry_after=int(ing.get("max_retry_after_seconds", 120)),
         )
         self.max_extract = ing["max_extract_chars"]
         self.archive_raw = ing.get("archive_raw", True)

@@ -34,6 +34,15 @@ class SvpAssignment:
     label: str          # "Digital Infrastructure"
     value_proposition: str  # name of the closest value proposition
     score: float
+    #: Every SVP, closest first (by its best value proposition). The SVPs
+    #: overlap — "collaboration for hospital staff" is Employee Experience but
+    #: sits next to Digital Trust's Health proposition — so a constrained run
+    #: accepts a requested SVP that is a close second, not only the first.
+    ranking: tuple[str, ...] = ()
+
+    def rank_of(self, svp: str) -> int | None:
+        """1-based position of `svp` in the ranking, or None."""
+        return self.ranking.index(svp) + 1 if svp in self.ranking else None
 
 
 class SvpClassifier:
@@ -79,7 +88,20 @@ class SvpClassifier:
                 best = int(np.argmax(row))
                 vp = self.vps[best]
                 self._cache[statement] = SvpAssignment(vp["svp"], self.label(vp["svp"]), vp["name"],
-                                                       float(row[best]))
+                                                       float(row[best]), self._ranking(row))
+
+    def _ranking(self, row: np.ndarray) -> tuple[str, ...]:
+        best: dict[str, float] = {}
+        for i, vp in enumerate(self.vps):
+            best[vp["svp"]] = max(best.get(vp["svp"], -1.0), float(row[i]))
+        return tuple(sorted(best, key=best.get, reverse=True))
+
+    def nearest_svps(self, vectors: np.ndarray) -> list[str]:
+        """Closest SVP for each of a batch of already-embedded vectors."""
+        if len(vectors) == 0:
+            return []
+        idx = (_normalise(vectors) @ self.vectors.T).argmax(axis=1)
+        return [self.vps[int(i)]["svp"] for i in idx]
 
     def assign(self, statement: str) -> SvpAssignment | None:
         if not statement:

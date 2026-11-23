@@ -9,7 +9,7 @@
 # used as a right-to-win prior, never as an attractiveness input.
 version: "2026-08-a"
 owner: "taxonomy-curator"
-count_target: "25-40"
+count_target: "25-45"  # widened from 25-40 on 2026-11-23 for the EX/CX technologies
 items:
 
   - id: private_5g
@@ -315,3 +315,55 @@ items:
     exclusions: [containers_kubernetes]
     cpc: ["G06F9/54", "H04L67/02"]
     orange_asset: true
+
+  # ---------- Employee and customer experience (added 2026-11-23) ----------
+  # Without these the EX and CX SVPs had no technology to name: candidates were
+  # forced onto generative_ai / nlp_speech, and taxonomy-driven collection never
+  # searched for collaboration, contact-centre or endpoint evidence.
+  - id: unified_communications
+    label: Unified communications and collaboration
+    definition: Cloud calling, meetings, messaging and team collaboration delivered as a managed service.
+    synonyms: [UCaaS, cloud telephony, video conferencing, Microsoft Teams Phone, Webex, collaboration suite]
+    exclusions: [contact_center_platform, cpaas_messaging]
+    cpc: ["H04L12/18", "H04M3/56", "H04N7/15"]
+    orange_asset: true
+
+  - id: contact_center_platform
+    label: Cloud contact centre (CCaaS)
+    definition: Cloud platform routing and handling customer interactions across voice and digital channels.
+    synonyms: [CCaaS, cloud contact center, omnichannel routing, IVR, workforce engagement management]
+    exclusions: [unified_communications, nlp_speech]
+    cpc: ["H04M3/51", "H04M3/523"]
+    orange_asset: true
+
+  - id: endpoint_management
+    label: Unified endpoint management
+    definition: Managing, securing and supporting employee laptops, phones and tablets through their lifecycle.
+    synonyms: [UEM, MDM, mobile device management, device as a service, digital employee experience, DEX]
+    exclusions: [zero_trust_architecture, iot_platform]
+    cpc: ["H04W8/24", "G06F8/61"]
+    orange_asset: true
+
+  - id: cpaas_messaging
+    label: CPaaS and business messaging
+    definition: Programmable voice, SMS, RCS and messaging-app channels for reaching customers, including branded and verified calling.
+    synonyms: [CPaaS, RCS business messaging, A2P SMS, WhatsApp Business, branded calling, verified caller ID]
+    exclusions: [contact_center_platform, unified_communications]
+    cpc: ["H04L51/", "H04W4/14"]
+    orange_asset: true
+
+  - id: push_to_talk
+    label: Push-to-talk and critical communications
+    definition: Instant group voice and data for frontline and mission-critical teams over broadband networks.
+    synonyms: [PTT, push-to-talk over cellular, PoC, MCPTT, mission-critical push-to-talk, lone worker]
+    exclusions: [private_5g, wearables]
+    cpc: ["H04W4/10", "H04W76/45"]
+    orange_asset: false
+
+  - id: customer_data_platform
+    label: Customer data platform
+    definition: Unifying customer data across channels into profiles used for segmentation, personalisation and measurement.
+    synonyms: [CDP, customer 360, identity resolution, first-party data platform]
+    exclusions: [cloud_data_platform, machine_learning]
+    cpc: ["G06Q30/02"]
+    orange_asset: false

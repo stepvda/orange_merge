@@ -23,13 +23,18 @@ def test_config_validates_on_load(cfg):
 
 
 def test_vocabulary_sizes_meet_sprint_0_targets(cfg):
-    """§3.3 sets 40-60 use cases and 25-40 technologies as the tractable target."""
+    """§3.3 sets 40-60 use cases and 25-40 technologies as the tractable target.
+
+    Technologies widened to 45 on 2026-11-23: six employee- and customer-
+    experience technologies were added because the EX and CX SVPs had none,
+    which starved both collection and generation for those SVPs.
+    """
     assert len(cfg.verticals) == 15, "the briefing fixes fifteen verticals (Table 7)"
     assert len(cfg.domains) == 6, "the briefing fixes six business domains"
     assert len(cfg.personas) == 9, "the briefing fixes nine target personas"
     assert len(cfg.signal_types) == 6, "the signal taxonomy has exactly six types (FR-03)"
     assert 40 <= len(cfg.use_cases) <= 60
-    assert 25 <= len(cfg.technologies) <= 40
+    assert 25 <= len(cfg.technologies) <= 45
 
 
 def test_attractiveness_weights_are_the_briefing_figures(cfg):

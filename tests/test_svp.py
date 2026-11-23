@@ -83,25 +83,34 @@ def test_svp_filter_and_facets():
 # The Generate screen's SVP constraint is enforced on the candidate's statement
 # ---------------------------------------------------------------------------
 
-def test_generation_svp_constraint_is_enforced(clf, tmp_path, monkeypatch):
+def _synth(clf, tmp_path, monkeypatch, svps, accept_rank):
     from radar.config import get_config
     from radar.db import Database
     from radar.llm import LLMClient
-    from radar.pipeline.synthesis import Candidate, GenerationConstraints, SynthesisStats, Synthesiser
+    from radar.pipeline.synthesis import GenerationConstraints, Synthesiser
 
     db = Database(tmp_path / "t.db")
     db.init_schema()
     synth = Synthesiser(get_config(), db, LLMClient(provider="mock"), embedder=clf.embedder,
-                        constraints=GenerationConstraints.from_dict({"svps": ["SU"]}),
+                        constraints=GenerationConstraints.from_dict({"svps": svps}),
                         portfolio_overlap=None)
     monkeypatch.setattr(synth, "_svp_classifier", lambda: clf)
+    monkeypatch.setattr(type(synth), "_svp_settings",
+                        property(lambda self: {"accept_rank": accept_rank, "min_cluster_signals": 2}))
+    return synth
 
-    def candidate(statement):
-        return Candidate(vertical="manufacturing", use_case="predictive_maintenance",
-                         technology="machine_learning", statement=statement,
-                         domains=["ox_smart_industries"],
-                         why_hot=[{"claim": "Three deployments this quarter.", "signals": ["SIG-1"]}])
 
+def candidate(statement):
+    from radar.pipeline.synthesis import Candidate
+    return Candidate(vertical="manufacturing", use_case="predictive_maintenance",
+                     technology="machine_learning", statement=statement,
+                     domains=["ox_smart_industries"],
+                     why_hot=[{"claim": "Three deployments this quarter.", "signals": ["SIG-1"]}])
+
+
+def test_generation_svp_constraint_is_enforced(clf, tmp_path, monkeypatch):
+    from radar.pipeline.synthesis import SynthesisStats
+    synth = _synth(clf, tmp_path, monkeypatch, ["SU"], accept_rank=1)
     stats = SynthesisStats()
     assert synth._validate(candidate("Carbon and energy reporting for chemical process plants."),
                            {"SIG-1"}, stats) is True
@@ -126,3 +135,43 @@ def test_svp_vocabulary_needs_no_embedder(tmp_path):
     assert svp_vocabulary(path) == [{"id": "DI", "label": "Digital Infrastructure",
                                      "definition": "Secured Connectivity"}]
     assert svp_vocabulary(tmp_path / "missing.json") == []
+
+
+def test_a_requested_svp_that_is_a_close_second_is_accepted(clf, tmp_path, monkeypatch):
+    """SVPs overlap; at accept_rank 2 a candidate whose second-closest SVP is
+    the requested one passes, at rank 1 it does not."""
+    from radar.pipeline.synthesis import SynthesisStats
+    statement = "SD-WAN network for industrial factory sites"   # DI and OX both close
+    ranking = clf.assign(statement).ranking
+    requested = ranking[1]
+    assert _synth(clf, tmp_path, monkeypatch, [requested], accept_rank=2)._validate(
+        candidate(statement), {"SIG-1"}, SynthesisStats()) is True
+    stats = SynthesisStats()
+    assert _synth(clf, tmp_path, monkeypatch, [requested], accept_rank=1)._validate(
+        candidate(statement), {"SIG-1"}, stats) is False
+    assert "ranks 2" in stats.rejections[0]["reason"]
+
+
+def test_constrained_runs_read_the_clusters_with_evidence_for_the_svp(clf, tmp_path, monkeypatch):
+    """Clusters are ranked by how many signals sit closest to the requested SVP;
+    a cluster with fewer than min_cluster_signals is not read at all."""
+    synth = _synth(clf, tmp_path, monkeypatch, ["SU"], accept_rank=2)
+    vec = {
+        "SU": clf.embedder.encode(["carbon energy"])[0],
+        "DI": clf.embedder.encode(["sd-wan network"])[0],
+    }
+    layout = {1: ["DI"] * 9 + ["SU"],          # biggest cluster, 1 SU signal: skipped
+              2: ["SU"] * 2 + ["DI"] * 2,      # 2 SU signals
+              3: ["SU"] * 4}                    # 4 SU signals: read first
+    with synth.db.cursor() as cur:
+        for cid, svps in layout.items():
+            cur.execute("INSERT INTO clusters (id, label, keyphrases, size, created_at, refresh_id) "
+                        "VALUES (?,?,?,?,?,?)", (cid, f"c{cid}", "[]", len(svps), "2026-11-23", "R"))
+            for k, svp in enumerate(svps):
+                cur.execute(
+                    "INSERT INTO signals (id, source_id, publisher, title, published_at, ingested_at, tier, "
+                    "extract, relevance, cluster_id, embedding, pipeline_version) "
+                    "VALUES (?,?,?,?,?,?,?,?,?,?,?,?)",
+                    (f"S{cid}-{k}", "x", "p", "t", "2026-11-01", "2026-11-01", 1, "e", 1.0, cid,
+                     np.asarray(vec[svp], dtype=np.float32).tobytes(), "0"))
+    assert synth._cluster_ids(None, set()) == [3, 2]

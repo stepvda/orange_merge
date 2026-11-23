@@ -143,7 +143,7 @@ class HttpSession:
     """Shared HTTP session with per-host rate limiting and retry/backoff."""
 
     def __init__(self, user_agent: str, timeout: int = 45, max_retries: int = 3, backoff: int = 5,
-                 min_interval: float = 0.4, failure_budget: int = 2):
+                 min_interval: float = 0.4, failure_budget: int = 2, max_retry_after: int = 120):
         self.session = requests.Session()
         self.session.headers.update({"User-Agent": user_agent, "Accept-Encoding": "gzip, deflate"})
         self.timeout = timeout
@@ -162,6 +162,12 @@ class HttpSession:
         # refresh short-circuit. NFR-04 asks the refresh to complete inside its
         # cadence window; one dead source must not put that at risk.
         self.failure_budget = failure_budget
+        # Longest server-requested wait (Retry-After) honoured. On 2026-11-23
+        # OpenAlex answered 429 with Retry-After: 38054 — its daily quota was
+        # spent — and the refresh slept 10.5 hours behind it. A host asking for
+        # longer than this is not coming back within the refresh, so it is
+        # given up at once for the rest of the refresh, like a tripped breaker.
+        self.max_retry_after = max_retry_after
         self._failures: dict[str, int] = {}
         self.tripped: set[str] = set()
 
@@ -199,6 +205,16 @@ class HttpSession:
                 wait = self.backoff * (attempt + 1) * multiplier
                 retry_after = resp.headers.get("Retry-After")
                 if retry_after and retry_after.isdigit():
+                    if int(retry_after) > self.max_retry_after:
+                        log.error(
+                            "%s %s -> %d asking to retry in %ss, beyond the %ss cap — giving up "
+                            "on %s for the rest of this refresh. The source is recorded as failed "
+                            "in the refresh stats.",
+                            method, url, resp.status_code, retry_after, self.max_retry_after, host,
+                        )
+                        with self._lock:
+                            self.tripped.add(host)
+                        return None
                     wait = max(wait, int(retry_after))
                 log.warning("%s %s -> %d, retrying in %ds", method, url, resp.status_code, wait)
                 time.sleep(wait)

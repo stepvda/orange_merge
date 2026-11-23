@@ -696,6 +696,18 @@ class Synthesiser:
                + f" ORDER BY {', '.join(order)}")
         rows = [r["id"] for r in self.db.query(sql, tuple(params)) if r["id"] not in exclude]
 
+        if self.constraints.svps:
+            # Read the clusters that carry evidence for the requested SVP, most
+            # first. Before this a five-space Employee Experience run read the
+            # 80 largest clusters — almost all industrial or connectivity — and
+            # the model, rightly, proposed almost nothing.
+            affinity = self._svp_affinity(rows)
+            if affinity:
+                floor = int(self._svp_settings.get("min_cluster_signals", 2))
+                position = {cid: i for i, cid in enumerate(rows)}
+                rows = sorted((cid for cid in rows if affinity.get(cid, 0) >= floor),
+                              key=lambda cid: (-affinity[cid], position[cid]))
+
         if max_clusters:
             return rows[: int(max_clusters)]
         if target_new is not None:
@@ -1173,6 +1185,39 @@ class Synthesiser:
         from ..svp import classifier
         return classifier()
 
+    @property
+    def _svp_settings(self) -> dict[str, Any]:
+        return (self.cfg.settings.get("curation") or {}).get("svp_constraint") or {}
+
+    @property
+    def _svp_accept_rank(self) -> int:
+        return int(self._svp_settings.get("accept_rank", 2))
+
+    def _svp_affinity(self, cluster_ids: list[int]) -> dict[int, int]:
+        """Per cluster: how many of its signals sit closest to a requested SVP.
+
+        Uses the signal embeddings the themes stage already stored, so it costs
+        no model calls — one matrix product over the corpus.
+        """
+        clf = self._svp_classifier()
+        if clf is None or not cluster_ids:
+            return {}
+        wanted = set(self.constraints.svps)
+        rows = self.db.query(
+            "SELECT cluster_id, embedding FROM signals WHERE embedding IS NOT NULL "
+            "AND relevance > 0 AND cluster_id IS NOT NULL"
+        )
+        keep = set(cluster_ids)
+        rows = [r for r in rows if r["cluster_id"] in keep]
+        if not rows:
+            return {}
+        vectors = np.vstack([Embedder.from_blob(r["embedding"]) for r in rows]).astype(np.float32)
+        counts: dict[int, int] = {}
+        for row, svp in zip(rows, clf.nearest_svps(vectors)):
+            if svp in wanted:
+                counts[row["cluster_id"]] = counts.get(row["cluster_id"], 0) + 1
+        return counts
+
     def _validate(self, candidate: Candidate, valid_signal_ids: set[str], stats: SynthesisStats) -> bool:
         """Closed vocabulary, specificity and evidence binding (§4.4.4)."""
         # 2. Closed-vocabulary output. One retry via synonym resolution, then drop.
@@ -1215,12 +1260,19 @@ class Synthesiser:
             stats.rejections.append({"statement": candidate.statement, "reason": outside})
             return False
         if self.constraints.svps and (clf := self._svp_classifier()) is not None:
+            # The SVPs overlap, so a requested SVP that is the candidate's
+            # second-closest is accepted (curation.svp_constraint.accept_rank).
+            # Measured on 28 typical statements: the right SVP came first 20
+            # times and in the top two 25 times.
             hit = clf.assign(candidate.statement.strip())
-            if hit is None or hit.svp not in self.constraints.svps:
+            ranks = [r for r in (hit.rank_of(k) for k in self.constraints.svps) if r] if hit else []
+            if not ranks or min(ranks) > self._svp_accept_rank:
                 stats.failed_constraints += 1
                 stats.rejections.append({
                     "statement": candidate.statement,
-                    "reason": f"SVP {hit.svp if hit else None!r} outside the requested {list(self.constraints.svps)}",
+                    "reason": f"SVP {hit.svp if hit else None!r} outside the requested "
+                              f"{list(self.constraints.svps)}"
+                              + (f" (closest requested ranks {min(ranks)})" if ranks else ""),
                 })
                 return False
 

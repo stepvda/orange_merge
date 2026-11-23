@@ -49,42 +49,89 @@ _VOCABULARIES = {
 MIN_TERM_CHARS = 6
 
 
-def _english_terms(cfg: Config, vocab_name: str, include_synonyms: bool) -> list[str]:
+def _item_terms(cfg: Config, vocab_name: str, language: str,
+                include_synonyms: bool) -> list[tuple[Any, list[str]]]:
+    """(vocabulary item, its terms in this language), in vocabulary file order."""
     vocab = getattr(cfg, _VOCABULARIES[vocab_name])
-    terms: list[str] = []
+    lexicon = cfg.lexicon.get("terms") or {}
+    out: list[tuple[Any, list[str]]] = []
     for item in vocab:
-        terms.append(item.label)
-        if include_synonyms:
-            terms.extend(item.synonyms)
-    return terms
+        if language == "en":
+            terms = [item.label] + (list(item.synonyms) if include_synonyms else [])
+        else:
+            terms = [str(t) for t in (lexicon.get(item.id) or {}).get(language) or ()]
+        if terms:
+            out.append((item, terms))
+    return out
 
 
-def _lexicon_terms(cfg: Config, vocab_name: str, language: str) -> list[str]:
-    """Non-English terms for one vocabulary, from config/taxonomy/lexicon.yaml."""
-    vocab = getattr(cfg, _VOCABULARIES[vocab_name])
-    ids = set(vocab.ids)
-    terms: list[str] = []
-    for vocab_id, per_language in (cfg.lexicon.get("terms") or {}).items():
-        if vocab_id in ids:
-            terms.extend(str(t) for t in (per_language or {}).get(language) or ())
-    return terms
+def _spread(n: int) -> list[int]:
+    """0..n-1 in bit-reversed order: 0, n/2, n/4, 3n/4, …
+
+    A vocabulary file is written in thematic blocks (connectivity, cloud, AI,
+    IoT, security, workplace…). Taking the first k of it under a query cap
+    covers the first blocks only; taking k in this order samples every block.
+    """
+    bits = max(1, (n - 1).bit_length())
+    return sorted(range(n), key=lambda i: int(format(i, f"0{bits}b")[::-1], 2))
+
+
+def _balanced(cfg: Config, vocab_name: str, language: str, include_synonyms: bool) -> list[str]:
+    """One vocabulary's terms, ordered so that a cap keeps a fair sample.
+
+    Use cases are taken round-robin across their business domain, so a cap of
+    16 queries covers operations, connectivity, security, cloud, customer and
+    employee experience rather than the sixteen industrial use cases the file
+    happens to start with. Other vocabularies carry no domain and are spread
+    across the file. Every item's first term comes before anyone's second, so
+    synonyms never crowd out an item that has not been queried at all.
+    """
+    items = _item_terms(cfg, vocab_name, language, include_synonyms)
+    if vocab_name == "use_cases":
+        groups: dict[str, list[list[str]]] = {}
+        for item, terms in items:
+            key = (item.get("domains") or [item.id])[0]
+            groups.setdefault(key, []).append(terms)
+        ordered_items: list[list[str]] = []
+        queues = list(groups.values())
+        while any(queues):
+            for queue in queues:
+                if queue:
+                    ordered_items.append(queue.pop(0))
+    else:
+        ordered_items = [items[i][1] for i in _spread(len(items))] if items else []
+
+    out: list[str] = []
+    depth = max((len(t) for t in ordered_items), default=0)
+    for level in range(depth):
+        out.extend(t[level] for t in ordered_items if len(t) > level)
+    return out
 
 
 def taxonomy_terms(cfg: Config, spec: dict[str, Any]) -> list[str]:
-    """Ordered, deduplicated term list for a `*_from_taxonomy` spec."""
+    """Ordered, deduplicated term list for a `*_from_taxonomy` spec.
+
+    Order matters because sources cap the list (`max_queries`). Until
+    2026-11-23 the terms came in file order and were cut there, so 18 of the 19
+    taxonomy-driven sources never searched for a single employee- or
+    customer-experience term. Each vocabulary is now balanced (`_balanced`) and
+    the vocabularies are interleaved, so whatever the cap keeps is a fair
+    sample of the whole grid.
+    """
     language = str(spec.get("language", "en")).lower()
     include_synonyms = bool(spec.get("include_synonyms", False))
     names = spec.get("vocabularies") or ["technologies", "use_cases"]
 
-    terms: list[str] = []
+    per_vocab: list[list[str]] = []
     for name in names:
         if name not in _VOCABULARIES:
             log.warning("queries_from_taxonomy: unknown vocabulary %r — skipped", name)
             continue
-        if language == "en":
-            terms.extend(_english_terms(cfg, name, include_synonyms))
-        else:
-            terms.extend(_lexicon_terms(cfg, name, language))
+        per_vocab.append(_balanced(cfg, name, language, include_synonyms))
+
+    terms: list[str] = []
+    for i in range(max((len(v) for v in per_vocab), default=0)):
+        terms.extend(v[i] for v in per_vocab if i < len(v))
 
     for extra in spec.get("extra_terms") or []:
         terms.append(str(extra))
