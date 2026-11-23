@@ -69,6 +69,14 @@ curation:
   require_exact_triple: true
   # Near-duplicate merge threshold on opportunity-statement embeddings (§4.4.5).
   duplicate_similarity_threshold: 0.86
+  # Reject candidates that restate an offer already in data/portfolio.json
+  # (radar.portfolio_overlap): multilingual embedding similarity of the
+  # statement to each offer's name + headline (offers are mostly French).
+  # Calibrated 2026-11-23 on 464 spaces: >=0.70 were mostly genuine
+  # restatements, ~0.66 began to mix in false ones. Raise to reject less.
+  portfolio_overlap:
+    enabled: true
+    similarity_threshold: 0.70
   # Statement length guards against both slogans and paragraphs.
   statement_min_chars: 40
   statement_max_chars: 180

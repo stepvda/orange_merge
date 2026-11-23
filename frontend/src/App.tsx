@@ -125,7 +125,7 @@ function loadLayout(): Layout {
  * this tool spreads inside an organisation, so ?topic=OS012 has to survive a
  * copy-paste. ?role and ?theme ride along for the same reason.
  */
-const FILTER_KEYS = ['vertical', 'domain', 'persona', 'geography', 'market_cluster', 'horizon', 'competition'] as const
+const FILTER_KEYS = ['vertical', 'domain', 'svp', 'persona', 'geography', 'market_cluster', 'horizon', 'competition'] as const
 
 function isPortfolioPath() {
   return /\/portfolio\/?$/.test(window.location.pathname)
@@ -564,7 +564,7 @@ function RadarApp({ user, minPasswordLength, onSignedOut, onUserChanged }: Radar
   const filtersApply = tab === 'radar' || tab === 'list' || tab === 'whitespace'
 
   const activeFilterCount = useMemo(
-    () => filters.vertical.length + filters.domain.length + filters.persona.length
+    () => filters.vertical.length + filters.domain.length + filters.svp.length + filters.persona.length
       + filters.geography.length + filters.market_cluster.length
       + filters.horizon.length + (filters.q ? 1 : 0),
     [filters],
@@ -574,6 +574,7 @@ function RadarApp({ user, minPasswordLength, onSignedOut, onUserChanged }: Radar
     const parts = [
       ...filters.vertical.map((v) => meta?.verticals.find((x) => x.id === v)?.label ?? v),
       ...filters.domain.map((d) => meta?.domains.find((x) => x.id === d)?.label ?? d),
+      ...filters.svp.map((s) => meta?.svps.find((x) => x.id === s)?.label ?? s),
       ...filters.persona.map((p) => meta?.personas.find((x) => x.id === p)?.label ?? p),
       ...filters.geography,
       ...filters.market_cluster.map((c) => meta?.market_clusters.find((m) => m.id === c)?.label ?? c),
@@ -931,7 +932,7 @@ function RadarApp({ user, minPasswordLength, onSignedOut, onUserChanged }: Radar
               </div>
               <div className="panel-body">
                 <RadarLegend />
-                <RadarChart topics={shown} domains={meta.domains}
+                <RadarChart topics={shown} sectors={meta.svps}
                             selectedId={selected} onSelect={selectAndShow} />
                 {/* The plot is the product's one claim to authority, and a
                     reader's first question about it is where the dots came

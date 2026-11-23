@@ -27,6 +27,7 @@ from .config import Config
 from .db import Database, unjs
 from .graph import LINK_DISTANCE, LINK_MEANING
 from .sizing import sizes_for_topic
+from .svp import classifier as svp_classifier
 from .workflow import WorkflowService
 
 log = logging.getLogger(__name__)
@@ -51,6 +52,7 @@ class ReadModel:
             states,
         )
         context = self._bulk([r["id"] for r in rows])
+        _warm_svps(r["statement"] for r in rows)
         return [self._assemble(dict(r), context=context) for r in rows]
 
     def topics_by_id(self, topic_ids: list[str]) -> list[dict[str, Any]]:
@@ -71,6 +73,7 @@ class ReadModel:
             )
         }
         context = self._bulk(list(rows))
+        _warm_svps(r["statement"] for r in rows.values())
         return [self._assemble(dict(rows[i]), context=context) for i in topic_ids if i in rows]
 
     def _bulk(self, topic_ids: list[str]) -> dict[str, Any]:
@@ -289,6 +292,8 @@ class ReadModel:
             "statement": topic["statement"],
             "domains": unjs(topic["domains"], []),
             "domain_labels": [self.cfg.domains.label(d) for d in unjs(topic["domains"], []) or []],
+            # Portfolio SVP (radar sector, SVP filter) — radar.svp.
+            **_svp_fields(topic["statement"]),
             "personas": unjs(topic["personas"], []),
             "persona_labels": [self.cfg.personas.label(p) for p in unjs(topic["personas"], []) or []],
             "geographies": unjs(topic["geographies"], []),
@@ -804,10 +809,24 @@ SORTS = {
 _COMPETITION_ORDER = {"none": 0, "low": 1, "medium": 2, "high": 3}
 
 
+def _warm_svps(statements) -> None:
+    """Embed a whole result set's statements in one batch before assembly."""
+    if (clf := svp_classifier()) is not None:
+        clf.warm([s for s in statements if s])
+
+
+def _svp_fields(statement: str) -> dict[str, Any]:
+    clf = svp_classifier()
+    hit = clf.assign(statement) if clf is not None else None
+    if hit is None:
+        return {"svp": None, "svp_label": None, "svp_value_proposition": None}
+    return {"svp": hit.svp, "svp_label": hit.label, "svp_value_proposition": hit.value_proposition}
+
+
 def _facets(topics: list[dict[str, Any]]) -> dict[str, dict[str, int]]:
     """How many topics each filter value would leave, across the whole result set."""
     facets: dict[str, dict[str, int]] = {
-        "vertical": {}, "domain": {}, "persona": {}, "geography": {},
+        "vertical": {}, "domain": {}, "svp": {}, "persona": {}, "geography": {},
         "market_cluster": {}, "horizon": {}, "state": {}, "competition": {},
     }
 
@@ -817,6 +836,7 @@ def _facets(topics: list[dict[str, Any]]) -> dict[str, dict[str, int]]:
 
     for topic in topics:
         bump("vertical", topic["triple"]["vertical"])
+        bump("svp", topic.get("svp"))
         bump("horizon", topic.get("horizon"))
         bump("state", topic.get("state"))
         bump("competition", (topic.get("competition") or {}).get("level"))
@@ -888,6 +908,8 @@ def _matches(topic: dict[str, Any], filters: dict[str, Any]) -> bool:
     if (verticals := filters.get("vertical")) and topic["triple"]["vertical"] not in verticals:
         return False
     if (domains := filters.get("domain")) and not (set(topic["domains"]) & set(domains)):
+        return False
+    if (svps := filters.get("svp")) and topic.get("svp") not in svps:
         return False
     if (personas := filters.get("persona")) and not (set(topic["personas"]) & set(personas)):
         return False

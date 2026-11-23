@@ -203,6 +203,16 @@ def _llm() -> LLMClient:
     return LLMClient(max_retries=_cfg.settings["llm"]["max_retries"])
 
 
+def _svp_payload() -> list[dict[str, Any]]:
+    from .svp import classifier
+    clf = classifier()
+    if clf is None:
+        return []
+    return [{"id": s["id"], "label": s["label"],
+             "definition": "; ".join(v["name"] for v in clf.vps if v["svp"] == s["id"])}
+            for s in clf.svps]
+
+
 def _vocab_payload(vocab) -> list[dict[str, Any]]:
     return [
         {"id": item.id, "label": item.label, "definition": item.definition}
@@ -342,6 +352,8 @@ def meta() -> dict[str, Any]:
         "use_cases": _vocab_payload(_cfg.use_cases),
         "technologies": _vocab_payload(_cfg.technologies),
         "domains": _vocab_payload(_cfg.domains),
+        # Portfolio SVPs: the radar's sectors and the SVP filter (radar.svp).
+        "svps": _svp_payload(),
         "personas": _vocab_payload(_cfg.personas),
         "signal_types": _vocab_payload(_cfg.signal_types),
         "market_clusters": [
@@ -403,6 +415,7 @@ def view(
     role: str = Query("strategist"),
     vertical: list[str] | None = Query(None),
     domain: list[str] | None = Query(None),
+    svp: list[str] | None = Query(None),
     persona: list[str] | None = Query(None),
     geography: list[str] | None = Query(None),
     market_cluster: list[str] | None = Query(None),
@@ -422,7 +435,7 @@ def view(
     filters = {
         key: value
         for key, value in (
-            ("vertical", vertical), ("domain", domain), ("persona", persona),
+            ("vertical", vertical), ("domain", domain), ("svp", svp), ("persona", persona),
             ("geography", geography), ("market_cluster", market_cluster),
             ("horizon", horizon), ("state", state),
             ("competition", competition), ("has_brief", has_brief or None), ("q", q),
@@ -487,6 +500,7 @@ def whitespace(
     min_attractiveness: float = Query(55.0),
     vertical: list[str] | None = Query(None),
     domain: list[str] | None = Query(None),
+    svp: list[str] | None = Query(None),
     persona: list[str] | None = Query(None),
     geography: list[str] | None = Query(None),
     market_cluster: list[str] | None = Query(None),
@@ -502,7 +516,7 @@ def whitespace(
     filters = {
         key: value
         for key, value in (
-            ("vertical", vertical), ("domain", domain), ("persona", persona),
+            ("vertical", vertical), ("domain", domain), ("svp", svp), ("persona", persona),
             ("geography", geography), ("market_cluster", market_cluster),
             ("horizon", horizon), ("competition", competition), ("q", q),
         )
@@ -1518,7 +1532,8 @@ _generation = GenerationService(_cfg, _db)
 
 def _generation_filters(vertical: list[str] | None, domain: list[str] | None,
                         geography: list[str] | None, horizon: list[str] | None,
-                        market_cluster: list[str] | None = None) -> dict[str, Any]:
+                        market_cluster: list[str] | None = None,
+                        svp: list[str] | None = None) -> dict[str, Any]:
     """Filters for the generation preview.
 
     Clusters are expanded here rather than passed through as their own filter so
@@ -1528,7 +1543,7 @@ def _generation_filters(vertical: list[str] | None, domain: list[str] | None,
     with a number.
     """
     return {key: value for key, value in (
-        ("vertical", vertical), ("domain", domain), ("horizon", horizon),
+        ("vertical", vertical), ("domain", domain), ("svp", svp), ("horizon", horizon),
         ("geography", _expand_clusters(geography, market_cluster)),
     ) if value}
 
@@ -1559,6 +1574,8 @@ class GenerateIn(BaseModel):
     verticals: list[str] = Field(default_factory=list)
     horizons: list[str] = Field(default_factory=list)
     domains: list[str] = Field(default_factory=list)
+    svps: list[str] = Field(default_factory=list,
+                            description="Portfolio SVP keys (data/portfolio.json), e.g. DI, OX, DT.")
     run_critic: bool = True
     run_entailment: bool = True
 
@@ -1649,6 +1666,7 @@ def generation_options() -> dict[str, Any]:
 def generation_matching(
     vertical: list[str] | None = Query(None),
     domain: list[str] | None = Query(None),
+    svp: list[str] | None = Query(None),
     geography: list[str] | None = Query(None),
     market_cluster: list[str] | None = Query(None),
     horizon: list[str] | None = Query(None),
@@ -1666,7 +1684,7 @@ def generation_matching(
     carrying no geography is global rather than excluded, which is the same rule
     constrained synthesis validates candidates against.
     """
-    filters = _generation_filters(vertical, domain, geography, horizon, market_cluster)
+    filters = _generation_filters(vertical, domain, geography, horizon, market_cluster, svp)
     topics = _read.topics(states=_GENERATION_STATES)
     matched = [t for t in topics if matches_filters(t, filters)]
     matched.sort(key=lambda t: (t.get("attractiveness") or {}).get("score", 0.0), reverse=True)
@@ -1690,7 +1708,7 @@ def start_generation(payload: GenerateIn) -> dict[str, Any]:
         )
     geographies = _expand_clusters(payload.geographies, payload.market_clusters)
     constraints = GenerationConstraints.from_dict({
-        "verticals": payload.verticals, "domains": payload.domains,
+        "verticals": payload.verticals, "domains": payload.domains, "svps": payload.svps,
         "geographies": geographies, "horizons": payload.horizons,
     })
     try:

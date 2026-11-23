@@ -475,6 +475,13 @@ class GenerationService:
         unknown = [d for d in constraints.domains if d not in self.cfg.domains]
         if unknown:
             raise ValueError(f"Unknown domain(s): {unknown}. Known: {self.cfg.domains.ids}")
+        if constraints.svps:
+            from .svp import classifier
+            clf = classifier()
+            known = [s["id"] for s in clf.svps] if clf else []
+            unknown = [s for s in constraints.svps if s not in known]
+            if unknown:
+                raise ValueError(f"Unknown SVP(s): {unknown}. Known: {known}")
         unknown = [h for h in constraints.horizons if h not in ("now", "next", "later")]
         if unknown:
             raise ValueError(f"Unknown horizon(s): {unknown}. Known: ['now', 'next', 'later']")
@@ -735,6 +742,8 @@ class GenerationService:
             )
         if stats.failed_constraints:
             reasons.append(f"{stats.failed_constraints} fell outside the requested scope")
+        if stats.failed_portfolio:
+            reasons.append(f"{stats.failed_portfolio} restated an offer already in the portfolio")
         if stats.failed_critic:
             reasons.append(f"{stats.failed_critic} were rejected by the critic")
         if stats.failed_evidence:

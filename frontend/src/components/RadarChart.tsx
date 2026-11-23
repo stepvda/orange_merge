@@ -5,13 +5,18 @@ import { formatEur } from './MarketSize'
 /** The signature visual (§4.9 Radar view).
  *
  * "A polar layout where angular sectors are business domains, radial distance is
+ * [...]" — here the sectors are the portfolio SVPs (data/portfolio.json) rather
+ * than the taxonomy domains: the seven SVPs are how the portfolio is owned, and
+ * each space is placed in the SVP its statement is closest to (radar.svp).
+ *
+ * Original brief: "angular sectors are business domains, radial distance is
  * time horizon (Now at the centre, Later at the rim), marker size is
  * attractiveness and marker colour is right-to-win. This encodes four dimensions
  * without a legend anyone has to study, and it makes the two questions the radar
  * exists to answer — should we bet on it, can we win — visible simultaneously."
  *
  * Encoding choices, and why:
- *   angle  = domain      → POSITION carries identity, so no categorical hues are
+ *   angle  = SVP         → POSITION carries identity, so no categorical hues are
  *                          needed and the all-pairs CVD cap never binds.
  *   radius = horizon     → ordinal position, Now at the centre.
  *   area   = attractiveness → area, not radius, so the perceived size is linear
@@ -98,7 +103,8 @@ function markRadius(attractiveness: number | null | undefined): number {
 
 interface Props {
   topics: Topic[]
-  domains: VocabItem[]
+  /** One angular sector per item: the portfolio SVPs. */
+  sectors: VocabItem[]
   selectedId: string | null
   onSelect: (id: string) => void
 }
@@ -111,20 +117,19 @@ interface Placed {
   fill: string
 }
 
-export default function RadarChart({ topics, domains, selectedId, onSelect }: Props) {
+export default function RadarChart({ topics, sectors: sectorItems, selectedId, onSelect }: Props) {
   const [hover, setHover] = useState<{ topic: Topic; x: number; y: number } | null>(null)
 
-  const sectors = domains.length || 1
+  const sectors = sectorItems.length || 1
   const sweep = (Math.PI * 2) / sectors
 
   const placed = useMemo<Placed[]>(() => {
-    // Deterministic placement: topics in the same (domain, horizon) cell are
+    // Deterministic placement: topics in the same (SVP, horizon) cell are
     // spread evenly across their sector so they never sit on top of each other.
     // No randomness — the same data must always draw the same picture (SC-11).
     const cells = new Map<string, Topic[]>()
     for (const topic of topics) {
-      const domain = topic.domains[0] ?? '__none'
-      const key = `${domain}|${topic.horizon ?? 'later'}`
+      const key = `${topic.svp ?? '__none'}|${topic.horizon ?? 'later'}`
       const bucket = cells.get(key)
       if (bucket) bucket.push(topic)
       else cells.set(key, [topic])
@@ -132,8 +137,8 @@ export default function RadarChart({ topics, domains, selectedId, onSelect }: Pr
 
     const out: Placed[] = []
     for (const [key, members] of cells) {
-      const [domain, horizon] = key.split('|')
-      const index = domains.findIndex((d) => d.id === domain)
+      const [svp, horizon] = key.split('|')
+      const index = sectorItems.findIndex((d) => d.id === svp)
       const sectorIndex = index >= 0 ? index : sectors - 1
       const ring = RINGS.find((r) => r.horizon === horizon) ?? RINGS[2]
 
@@ -158,7 +163,7 @@ export default function RadarChart({ topics, domains, selectedId, onSelect }: Pr
     }
     // Draw the largest first so small marks land on top and stay clickable.
     return out.sort((a, b) => b.r - a.r)
-  }, [topics, domains, sectors, sweep])
+  }, [topics, sectorItems, sectors, sweep])
 
   return (
     <div className="radar-wrap">
@@ -167,7 +172,7 @@ export default function RadarChart({ topics, domains, selectedId, onSelect }: Pr
         viewBox={`${-PAD_X} ${-PAD_Y} ${VIEW_W} ${VIEW_H}`}
         style={{ maxWidth: VIEW_W, height: 'auto', display: 'block' }}
         role="img"
-        aria-label="Innovation radar: business domain by sector, time horizon by distance from centre, attractiveness by marker size, right to win by marker colour."
+        aria-label="Innovation radar: portfolio SVP by sector, time horizon by distance from centre, attractiveness by marker size, right to win by marker colour."
       >
         {/* horizon rings */}
         {RINGS.map((ring) => (
@@ -177,7 +182,7 @@ export default function RadarChart({ topics, domains, selectedId, onSelect }: Pr
         <circle cx={CX} cy={CY} r={R_MIN} fill="none" stroke="var(--grid-strong)" strokeWidth={1} />
 
         {/* sector dividers */}
-        {domains.map((_, i) => {
+        {sectorItems.map((_, i) => {
           const angle = i * sweep - Math.PI / 2
           return (
             <line key={i}
@@ -197,7 +202,7 @@ export default function RadarChart({ topics, domains, selectedId, onSelect }: Pr
         ))}
 
         {/* sector labels */}
-        {domains.map((domain, i) => {
+        {sectorItems.map((domain, i) => {
           const angle = i * sweep - Math.PI / 2 + sweep / 2
           const radius = R_MAX + 20
           const x = CX + Math.cos(angle) * radius
@@ -267,6 +272,9 @@ export default function RadarChart({ topics, domains, selectedId, onSelect }: Pr
           <div className="tt-title">{hover.topic.statement}</div>
           <div className="tt-row"><span>Attractiveness</span><b>{hover.topic.attractiveness?.score?.toFixed(1) ?? '—'}</b></div>
           <div className="tt-row"><span>Right to win</span><b>{hover.topic.right_to_win?.score?.toFixed(1) ?? '—'}</b></div>
+          {hover.topic.svp_label && (
+            <div className="tt-row"><span>SVP</span><b>{hover.topic.svp_label}</b></div>
+          )}
           <div className="tt-row"><span>Horizon</span><b>{hover.topic.horizon ?? '—'}</b></div>
           <div className="tt-row"><span>Portfolio distance</span><b>L{hover.topic.portfolio_distance}</b></div>
           <div className="tt-row"><span>Signals</span><b>{hover.topic.signal_count}</b></div>
@@ -314,7 +322,7 @@ export function RadarLegend() {
           <i key={v} style={{ width: markRadius(v) * 2, height: markRadius(v) * 2 }} />
         ))}
       </div>
-      <div><span className="legend-title">Sector</span>business domain</div>
+      <div><span className="legend-title">Sector</span>portfolio SVP</div>
       {/* Not "Distance": that word already means portfolio distance (L0-L4)
           everywhere else in the product, and one word cannot mean two axes. */}
       <div><span className="legend-title">Ring</span>time horizon, Now → Later</div>

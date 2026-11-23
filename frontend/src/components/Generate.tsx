@@ -23,7 +23,7 @@ import { EMPTY_CONSTRAINTS, constraintCount } from '../types'
  *    triple refreshes it rather than creating anything.
  *
  * 2. IT DISTINGUISHES THE FILTERS IT CAN ENFORCE FROM THE ONE IT CANNOT.
- *    Vertical, domain and geography are checked against every candidate
+ *    Vertical, SVP and geography are checked against every candidate
  *    server-side. Horizon is DERIVED from the evidence after scoring (§4.8:
  *    "derived rather than judged, because derived classifications are
  *    explainable and consistent"), so it steers the run and is reported
@@ -321,6 +321,12 @@ function RunReport({ job, onCancel, onOpenTopic }: {
                   holds; the run named those back to the model and asked again
                   {(synthesis.duplicate_retries ?? 0) > 0
                     && ` (${synthesis.duplicate_retries} extra pass${synthesis.duplicate_retries === 1 ? '' : 'es'})`}.
+                </>
+              )}
+              {(synthesis.failed_portfolio ?? 0) > 0 && (
+                <>
+                  {' '}{synthesis.failed_portfolio} restated an offer already in the portfolio and
+                  {synthesis.failed_portfolio === 1 ? ' was' : ' were'} dropped.
                 </>
               )}
             </p>
@@ -675,11 +681,11 @@ export default function GenerateScreen({ meta, onClose, onOpenTopic, onGenerated
             counts={match?.facets?.horizon}
           />
           <ConstraintGroup
-            title="Domain"
-            items={meta.domains}
-            selected={constraints.domains}
-            onToggle={toggle('domains')}
-            counts={match?.facets?.domain}
+            title="SVP"
+            items={meta.svps}
+            selected={constraints.svps}
+            onToggle={toggle('svps')}
+            counts={match?.facets?.svp}
           />
 
           <div className="gen-actions">

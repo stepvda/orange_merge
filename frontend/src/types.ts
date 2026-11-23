@@ -40,6 +40,8 @@ export interface Meta {
   use_cases: VocabItem[]
   technologies: VocabItem[]
   domains: VocabItem[]
+  /** Portfolio SVPs (data/portfolio.json): the radar's sectors and the SVP filter. */
+  svps: VocabItem[]
   personas: VocabItem[]
   signal_types: VocabItem[]
   /** Orange Business go-to-market grouping. `source` says whether Orange
@@ -409,6 +411,10 @@ export interface Topic {
   statement: string
   domains: string[]
   domain_labels: string[]
+  /** Portfolio SVP the statement is closest to (radar.svp); null without a portfolio. */
+  svp: string | null
+  svp_label: string | null
+  svp_value_proposition: string | null
   personas: string[]
   persona_labels: string[]
   geographies: string[]
@@ -501,6 +507,7 @@ export interface Coverage {
 export type FilterState = {
   vertical: string[]
   domain: string[]
+  svp: string[]
   persona: string[]
   geography: string[]
   market_cluster: string[]
@@ -513,7 +520,7 @@ export type FilterState = {
 }
 
 export const EMPTY_FILTERS: FilterState = {
-  vertical: [], domain: [], persona: [], geography: [], market_cluster: [], horizon: [],
+  vertical: [], domain: [], svp: [], persona: [], geography: [], market_cluster: [], horizon: [],
   competition: [], has_brief: false, q: '',
 }
 
@@ -538,16 +545,19 @@ export interface GenerationConstraints {
   market_clusters: string[]
   verticals: string[]
   horizons: string[]
+  /** Taxonomy domains. Still accepted by the API; the Generate screen scopes by SVP instead. */
   domains: string[]
+  /** Portfolio SVP keys (data/portfolio.json). Enforced on each candidate's statement. */
+  svps: string[]
 }
 
 export const EMPTY_CONSTRAINTS: GenerationConstraints = {
-  geographies: [], market_clusters: [], verticals: [], horizons: [], domains: [],
+  geographies: [], market_clusters: [], verticals: [], horizons: [], domains: [], svps: [],
 }
 
 export function constraintCount(c: GenerationConstraints): number {
   return c.geographies.length + c.market_clusters.length + c.verticals.length
-    + c.horizons.length + c.domains.length
+    + c.horizons.length + c.domains.length + c.svps.length
 }
 
 export interface GenerationOptions {

@@ -34,6 +34,7 @@ from ..config import Config
 from ..db import Database, js, unjs
 from ..embeddings import Embedder
 from ..llm import LLMClient
+from ..portfolio_overlap import PortfolioOverlap
 from . import prompts
 
 log = logging.getLogger(__name__)
@@ -141,6 +142,10 @@ class GenerationConstraints:
       horizon constraint selects clusters carrying that kind of evidence and
       tells the model what to look for; what the topics actually land on is
       reported afterwards rather than promised in advance.
+    * `svps` are portfolio SVPs (data/portfolio.json). A candidate's SVP is
+      assigned from its statement (radar.svp, the same assignment the radar
+      sectors use), so it is ENFORCED in `_validate` once the statement exists;
+      the prompt names the SVPs and their value propositions to steer the model.
 
     An empty instance is falsy and every constrained path degrades to the
     unconstrained one, so the pipeline behaves exactly as before when the
@@ -151,6 +156,7 @@ class GenerationConstraints:
     domains: tuple[str, ...] = ()
     geographies: tuple[str, ...] = ()
     horizons: tuple[str, ...] = ()
+    svps: tuple[str, ...] = ()
 
     @classmethod
     def from_dict(cls, data: dict[str, Any] | None) -> "GenerationConstraints":
@@ -159,14 +165,16 @@ class GenerationConstraints:
             values = data.get(key) or ()
             return tuple(dict.fromkeys(str(v).strip() for v in values if str(v).strip()))
         return cls(verticals=clean("verticals"), domains=clean("domains"),
-                   geographies=clean("geographies"), horizons=clean("horizons"))
+                   geographies=clean("geographies"), horizons=clean("horizons"),
+                   svps=clean("svps"))
 
     def __bool__(self) -> bool:
-        return bool(self.verticals or self.domains or self.geographies or self.horizons)
+        return bool(self.verticals or self.domains or self.geographies or self.horizons or self.svps)
 
     def as_dict(self) -> dict[str, list[str]]:
         return {"verticals": list(self.verticals), "domains": list(self.domains),
-                "geographies": list(self.geographies), "horizons": list(self.horizons)}
+                "geographies": list(self.geographies), "horizons": list(self.horizons),
+                "svps": list(self.svps)}
 
     def allows(self, candidate: "Candidate") -> str | None:
         """The reason this candidate falls outside the constraints, or None.
@@ -231,6 +239,9 @@ class SynthesisStats:
     #: constraints. Counted separately from a vocabulary failure: the candidate
     #: was well-formed, it was simply not what was asked for.
     failed_constraints: int = 0
+    #: Candidates that restate an offer already in the portfolio catalogue
+    #: (radar.portfolio_overlap). A space is meant to point at a gap.
+    failed_portfolio: int = 0
     #: Well-formed candidates that landed on a taxonomy cell the radar already
     #: holds. Kept and merged (DR-03), but they create nothing, so a request for
     #: five new spaces is not answered by five of these.
@@ -257,7 +268,7 @@ class SynthesisStats:
     #: too and adding it would report a two-brief run as having gone round twice.
     _SUMMED = ("clusters_processed", "raw_candidates", "failed_vocabulary", "failed_specificity",
                "failed_evidence", "failed_critic", "merged_duplicates", "accepted",
-               "entailment_stripped", "failed_constraints", "duplicate_of_existing",
+               "entailment_stripped", "failed_constraints", "failed_portfolio", "duplicate_of_existing",
                "duplicate_retries")
 
     def absorb(self, other: "SynthesisStats") -> "SynthesisStats":
@@ -300,13 +311,20 @@ class Synthesiser:
     llm_successes: int
     last_llm_error: str | None
 
+    #: Sentinel: "build the portfolio check from settings". None means "no check".
+    _FROM_SETTINGS: Any = object()
+
     def __init__(self, cfg: Config, db: Database, llm: LLMClient, embedder: Embedder | None = None,
-                 constraints: GenerationConstraints | None = None):
+                 constraints: GenerationConstraints | None = None,
+                 portfolio_overlap: "PortfolioOverlap | None" = _FROM_SETTINGS):
         self.cfg = cfg
         self.db = db
         self.llm = llm
         self.embedder = embedder or Embedder()
         self.constraints = constraints or GenerationConstraints()
+        if portfolio_overlap is Synthesiser._FROM_SETTINGS:
+            portfolio_overlap = PortfolioOverlap.from_settings(cfg.settings, self.embedder)
+        self.portfolio_overlap = portfolio_overlap
         self.llm_failures = 0
         self.llm_successes = 0
         self.last_llm_error: str | None = None
@@ -1026,6 +1044,13 @@ class Synthesiser:
         if self.constraints.domains:
             labels = ", ".join(f"{d} ({self.cfg.domains.label(d)})" for d in self.constraints.domains)
             lines.append(f"- DOMAINS must include at least one of: {labels}. Any other is discarded.")
+        if self.constraints.svps and (clf := self._svp_classifier()) is not None:
+            parts = []
+            for key in self.constraints.svps:
+                vps = "; ".join(v["name"] for v in clf.vps if v["svp"] == key)
+                parts.append(f"{clf.label(key)} (value propositions: {vps})")
+            lines.append("- The STATEMENT must clearly belong to one of these Orange Business portfolio "
+                         "SVPs: " + " | ".join(parts) + ". Any other is discarded.")
         if self.constraints.geographies:
             codes = ", ".join(self.constraints.geographies)
             lines.append(f"- GEOGRAPHIES must include at least one of: {codes}. Leave the list empty "
@@ -1144,6 +1169,10 @@ class Synthesiser:
 
     # -- stage 6a: validation ---------------------------------------------
 
+    def _svp_classifier(self):
+        from ..svp import classifier
+        return classifier()
+
     def _validate(self, candidate: Candidate, valid_signal_ids: set[str], stats: SynthesisStats) -> bool:
         """Closed vocabulary, specificity and evidence binding (§4.4.4)."""
         # 2. Closed-vocabulary output. One retry via synonym resolution, then drop.
@@ -1185,6 +1214,15 @@ class Synthesiser:
             stats.failed_constraints += 1
             stats.rejections.append({"statement": candidate.statement, "reason": outside})
             return False
+        if self.constraints.svps and (clf := self._svp_classifier()) is not None:
+            hit = clf.assign(candidate.statement.strip())
+            if hit is None or hit.svp not in self.constraints.svps:
+                stats.failed_constraints += 1
+                stats.rejections.append({
+                    "statement": candidate.statement,
+                    "reason": f"SVP {hit.svp if hit else None!r} outside the requested {list(self.constraints.svps)}",
+                })
+                return False
 
         # Specificity validation (§4.4 principle 4, FR-06). "A candidate that
         # does not resolve to exactly one vertical, one use case and one
@@ -1201,6 +1239,15 @@ class Synthesiser:
             stats.failed_specificity += 1
             stats.rejections.append({"statement": statement, "reason": "banned generic statement"})
             return False
+
+        # Not something Orange Business already sells (data/portfolio.json).
+        # Checked before evidence binding and the critic: a restated offer is
+        # rejected however well it is evidenced, so the model call is wasted.
+        if self.portfolio_overlap is not None:
+            if hit := self.portfolio_overlap.match(statement):
+                stats.failed_portfolio += 1
+                stats.rejections.append({"statement": statement, "reason": hit.reason()})
+                return False
 
         # 1. Evidence binding. Every claim must cite ids that exist IN THIS
         # CLUSTER. Uncited claims are stripped, not rewritten.

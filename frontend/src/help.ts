@@ -23,7 +23,7 @@ export const HELP: Record<string, HelpEntry> = {
     ref: '§4.9',
     body: [
       'Four dimensions at once, without a legend you have to study:',
-      '**Angular sector** is the business domain. **Distance from the centre** is the time horizon — Now at the middle, Later at the rim. **Marker size** is attractiveness. **Marker colour** is right to win, on a light-to-dark scale.',
+      '**Angular sector** is the portfolio SVP (Digital Infrastructure, Operational Experience, Employee Experience, Customer Experience, Digital Trust, Sustainability, Data & AI), assigned from the value proposition in data/portfolio.json the statement is closest to. **Distance from the centre** is the time horizon — Now at the middle, Later at the rim. **Marker size** is attractiveness. **Marker colour** is right to win, on a light-to-dark scale.',
       'Position carries identity here, which is why the colours are one hue rather than six: colour encodes a *quantity*, never which topic is which.',
       'A `!` inside a marker means an evidence gap — Orange has few or no published references in that vertical.',
       'Click a marker to open the topic. Hover for a summary.',
@@ -237,7 +237,7 @@ export const HELP: Record<string, HelpEntry> = {
     body: [
       'Runs the pipeline\'s **synthesis** stage on request instead of waiting for the scheduled refresh. It reasons over the theme clusters the pipeline has already built — it does not go and fetch anything. That is what makes *"the evidence does not support that many"* a real answer rather than a hang.',
       '**The count is spaces CREATED.** A candidate that lands on a vertical × use case × technology that already exists updates that space rather than making a second one (DR-03) — that is what keeps momentum measurable across refreshes — and an update does not count towards the number you asked for.',
-      '**Vertical, domain and geography are enforced.** Every candidate is checked against them after the model replies, and anything outside is discarded rather than corrected. The prompt asks; the validator decides (§4.4.4).',
+      '**Vertical, SVP and geography are enforced.** Every candidate is checked against them after the model replies, and anything outside is discarded rather than corrected. The prompt asks; the validator decides (§4.4.4).',
       '**Horizon is not, and cannot be.** §4.8 derives Now / Next / Later from the signal types attached to a space, after scoring — "derived rather than judged, because derived classifications are explainable and consistent". Selecting a horizon here picks clusters carrying that kind of evidence and tells the model what to look for. Where the new spaces actually landed is reported when the run finishes.',
       '**A cell that already exists is not a new space.** Canonical identity is the vertical × use case × technology triple (§4.4.5), so a candidate landing on an occupied cell updates that space rather than creating one — right on a refresh, and not what you asked for here. When a cluster produces only occupied cells, the run names them back to the model and asks again for something the evidence also supports. It does not count those toward your number, and it says how many there were.',
       '**A shortfall is explained, not hidden.** If you ask for eight and get three, the run says which gate the others failed — outside the requested scope, rejected by the critic, no claim that survived evidence binding, near-duplicates of one another.',
@@ -254,7 +254,7 @@ export const HELP: Record<string, HelpEntry> = {
     title: 'Filtering',
     ref: 'AC-04, FR-12',
     body: [
-      'Multi-select on vertical, market cluster, country, domain, persona and horizon, plus free-text search across statements and claims.',
+      'Multi-select on vertical, market cluster, country, SVP, persona and horizon, plus free-text search across statements and claims.',
       'Selections within one dimension are a union; different dimensions combine as an intersection.',
       'A topic with no geography is treated as global rather than excluded.',
     ],

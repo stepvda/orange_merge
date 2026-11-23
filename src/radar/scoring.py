@@ -729,60 +729,69 @@ class ScoringEngine:
         scored = 0
         state_changes: list[dict[str, str]] = []
 
+        # Compute everything first, write afterwards. Attractiveness includes a
+        # strategic-relevance model call per topic; computing inside the write
+        # transaction held SQLite's write lock across every one of those calls,
+        # so the API's session refresh and the LLM-usage log failed with
+        # "database is locked" for minutes at a time during a generation run.
+        writes: list[tuple[str, tuple]] = []
+        for topic in topics:
+            if topic["id"] not in signals_by_topic:
+                continue
+            topic_dict = dict(topic)
+            signals = signals_by_topic[topic["id"]]
+            links = [dict(r) for r in self.db.query(
+                "SELECT * FROM opportunity_links WHERE opportunity_id = ?", (topic["id"],)
+            )]
+
+            all_signals = all_signals_by_topic[topic["id"]]
+            att_score, att_components, att_inputs = self.attractiveness.score(
+                topic_dict, signals, reference_date, corpus_max, links, all_signals
+            )
+            rtw_score, rtw_components, rtw_inputs = self.right_to_win.score(topic_dict, links)
+
+            for kind, score, components, inputs in (
+                ("attractiveness", att_score, att_components, att_inputs),
+                ("right_to_win", rtw_score, rtw_components, rtw_inputs),
+            ):
+                writes.append((
+                    """INSERT INTO scores (opportunity_id, computed_at, refresh_id, kind, score,
+                                           components, inputs, weight_set, pipeline_version, model_version)
+                       VALUES (?,?,?,?,?,?,?,?,?,?)""",
+                    (topic["id"], now, refresh_id, kind, score, js(components), js(inputs),
+                     self.cfg.weight_set, self.cfg.pipeline_version,
+                     self.llm.strong_model if self.llm else None),
+                ))
+
+            # Horizon reads every attached signal: a compliance deadline
+            # published 14 months ago still dates the buying window.
+            horizon = derive_horizon(self.cfg, topic_dict, all_signals, reference_date)
+            state, reason = next_state(
+                self.cfg, topic_dict, signals, att_components, reference_date, all_signals
+            )
+            if state != topic["state"]:
+                state_changes.append({"id": topic["id"], "from": topic["state"], "to": state,
+                                      "reason": reason})
+                writes.append((
+                    "UPDATE opportunity_spaces SET state = ?, state_reason = ?, state_changed_at = ? WHERE id = ?",
+                    (state, reason, reference_date.isoformat(), topic["id"]),
+                ))
+            else:
+                writes.append((
+                    "UPDATE opportunity_spaces SET state_reason = ? WHERE id = ?", (reason, topic["id"])
+                ))
+
+            writes.append((
+                "UPDATE opportunity_spaces SET horizon = ?, horizon_basis = ?, horizon_anchor_date = ?, "
+                "last_refresh = ? WHERE id = ?",
+                (horizon["value"], horizon["basis"], horizon["anchor_date"],
+                 reference_date.isoformat(), topic["id"]),
+            ))
+            scored += 1
+
         with self.db.cursor() as cur:
-            for topic in topics:
-                if topic["id"] not in signals_by_topic:
-                    continue
-                topic_dict = dict(topic)
-                signals = signals_by_topic[topic["id"]]
-                links = [dict(r) for r in self.db.query(
-                    "SELECT * FROM opportunity_links WHERE opportunity_id = ?", (topic["id"],)
-                )]
-
-                all_signals = all_signals_by_topic[topic["id"]]
-                att_score, att_components, att_inputs = self.attractiveness.score(
-                    topic_dict, signals, reference_date, corpus_max, links, all_signals
-                )
-                rtw_score, rtw_components, rtw_inputs = self.right_to_win.score(topic_dict, links)
-
-                for kind, score, components, inputs in (
-                    ("attractiveness", att_score, att_components, att_inputs),
-                    ("right_to_win", rtw_score, rtw_components, rtw_inputs),
-                ):
-                    cur.execute(
-                        """INSERT INTO scores (opportunity_id, computed_at, refresh_id, kind, score,
-                                               components, inputs, weight_set, pipeline_version, model_version)
-                           VALUES (?,?,?,?,?,?,?,?,?,?)""",
-                        (topic["id"], now, refresh_id, kind, score, js(components), js(inputs),
-                         self.cfg.weight_set, self.cfg.pipeline_version,
-                         self.llm.strong_model if self.llm else None),
-                    )
-
-                # Horizon reads every attached signal: a compliance deadline
-                # published 14 months ago still dates the buying window.
-                horizon = derive_horizon(self.cfg, topic_dict, all_signals, reference_date)
-                state, reason = next_state(
-                    self.cfg, topic_dict, signals, att_components, reference_date, all_signals
-                )
-                if state != topic["state"]:
-                    state_changes.append({"id": topic["id"], "from": topic["state"], "to": state,
-                                          "reason": reason})
-                    cur.execute(
-                        "UPDATE opportunity_spaces SET state = ?, state_reason = ?, state_changed_at = ? WHERE id = ?",
-                        (state, reason, reference_date.isoformat(), topic["id"]),
-                    )
-                else:
-                    cur.execute(
-                        "UPDATE opportunity_spaces SET state_reason = ? WHERE id = ?", (reason, topic["id"])
-                    )
-
-                cur.execute(
-                    "UPDATE opportunity_spaces SET horizon = ?, horizon_basis = ?, horizon_anchor_date = ?, "
-                    "last_refresh = ? WHERE id = ?",
-                    (horizon["value"], horizon["basis"], horizon["anchor_date"],
-                     reference_date.isoformat(), topic["id"]),
-                )
-                scored += 1
+            for sql, params in writes:
+                cur.execute(sql, params)
 
         return {"scored": scored, "state_changes": state_changes, "corpus_max_signals": corpus_max}
 

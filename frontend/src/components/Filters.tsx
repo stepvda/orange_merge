@@ -129,7 +129,7 @@ export default function Filters({ meta, filters, onChange, geographies, marketCl
   }
 
   const active =
-    filters.vertical.length + filters.domain.length + filters.persona.length +
+    filters.vertical.length + filters.domain.length + filters.svp.length + filters.persona.length +
     filters.geography.length + filters.market_cluster.length + filters.horizon.length + filters.competition.length +
     (filters.has_brief ? 1 : 0) + (filters.q ? 1 : 0)
 
@@ -194,12 +194,12 @@ export default function Filters({ meta, filters, onChange, geographies, marketCl
         counts={facets.vertical}
       />
       <MultiSelect
-        title="Domain"
+        title="SVP"
         icon={IconLayers}
-        items={meta.domains}
-        selected={filters.domain}
-        onToggle={toggle('domain')}
-        counts={facets.domain}
+        items={meta.svps}
+        selected={filters.svp}
+        onToggle={toggle('svp')}
+        counts={facets.svp}
       />
       <MultiSelect
         title="Persona"

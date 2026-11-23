@@ -162,6 +162,7 @@ export const api = {
       sort: sort && sort !== 'rank' ? sort : undefined,
       vertical: filters.vertical,
       domain: filters.domain,
+      svp: filters.svp,
       persona: filters.persona,
       geography: filters.geography,
       market_cluster: filters.market_cluster,
@@ -260,6 +261,7 @@ export const api = {
     get<{ count: number; total_unfiltered: number; topics: Topic[] }>('/whitespace', {
       vertical: filters?.vertical,
       domain: filters?.domain,
+      svp: filters?.svp,
       persona: filters?.persona,
       geography: filters?.geography,
       market_cluster: filters?.market_cluster,
@@ -296,6 +298,7 @@ export const api = {
     get<GenerationMatch>('/generate/matching', {
       vertical: c.verticals,
       domain: c.domains,
+      svp: c.svps,
       geography: c.geographies,
       market_cluster: c.market_clusters,
       horizon: c.horizons,
