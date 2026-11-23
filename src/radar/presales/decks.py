@@ -315,13 +315,11 @@ def first_meeting_deck(ctx: TopicContext, content: dict[str, Any]) -> Deck:
                              "field in a first meeting invites a comparison you have not "
                              "framed yet."))
 
-    actions = ctx.topic.get("next_actions") or {}
-    if actions:
+    action = ctx.topic.get("next_action")
+    if action:
         deck.add(Slide(title="What happens next",
-                       bullets=[f'{role.replace("_", " ").title()}: {action}'
-                                for role, action in list(actions.items())[:5]],
-                       notes="Leave with a named owner and a date against at least one of "
-                             "these."))
+                       bullets=[action],
+                       notes="Leave with a named owner and a date against it."))
 
     deck.add(_sources_slide(content), _provenance_slide(ctx, written=bool(slides)))
     return deck

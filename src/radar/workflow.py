@@ -5,14 +5,18 @@ fast follower". This module implements A and C, which are the two that touch
 scoring:
 
   Model A — sequential stage-gate. Shortlisted -> Demand-tested -> Packaged ->
-  Live, with an owner per stage. Its named weakness is latency: "a topic can die
-  waiting for a stage owner", so `age_in_stage_days` is computed and surfaced
-  rather than left for someone to notice.
+  Live. Its named weakness is latency: "a topic can die waiting", so
+  `age_in_stage_days` is computed and surfaced rather than left for someone to
+  notice.
 
-  Model C — distributed assessment. "All three roles rate topics on their own
-  axis (strategy: attractiveness; sales: demand; presales: deliverability).
-  Divergence between the external score and internal ratings is surfaced as a
-  review trigger."
+  Model C — distributed assessment, on three axes: strategic fit, customer
+  demand and deliverability. Divergence between the external score and internal
+  ratings is surfaced as a review trigger.
+
+ROLES WERE REMOVED on 2026-11-23. The app no longer has strategist / sales /
+presales modes: any signed-in user may rate any axis, and a stage move records
+the user who made it. The `role` / `owner_role` / `actor_role` columns remain in
+the schema for history and are written empty.
 
 HOW ASSESSMENT AFFECTS SCORING, and the line it must not cross.
 
@@ -25,10 +29,8 @@ score. It is a THIRD, separately displayed quantity:
   right to win     can we play, can we win      (internal assets)
   conviction       do our own people believe it (internal judgement)
 
-Conviction enters only the per-role RANKING function, which already exists to
-order a list and is never displayed as a score. That keeps every published
-number reproducible from evidence alone (SC-11) while still letting the people
-closest to customers change what surfaces first.
+Conviction is displayed, never folded into a published number. That keeps
+every published number reproducible from evidence alone (SC-11).
 
 DIVERGENCE IS THE PRODUCT. §4.10 model C: "disagreement becomes information
 rather than friction". A topic the evidence rates highly and the sales team
@@ -60,26 +62,13 @@ STAGE_LABELS = {
 }
 TERMINAL_STAGES = ["parked", "rejected"]
 
-#: Which role owns which stage, and therefore who is accountable for the delay.
-STAGE_OWNER_ROLE = {
-    "shortlisted": "strategist",
-    "demand_tested": "sales",
-    "packaged": "presales",
-    "live": "presales",
-}
-
-#: Each role rates its OWN axis only. A salesperson is authoritative about
-#: whether customers are asking and is not being asked to re-judge the evidence.
-ROLE_AXIS = {
-    "strategist": "strategic_fit",
-    "sales": "customer_demand",
-    "presales": "deliverability",
-}
+#: The three assessment axes. Any signed-in user may rate any of them.
 AXIS_LABELS = {
     "strategic_fit": "Strategic fit",
     "customer_demand": "Customer demand",
     "deliverability": "Deliverability",
 }
+AXES = list(AXIS_LABELS)
 
 #: Discrete anchors, for the score-compression reason in §4.6 and §4.7.4's
 #: finding that people are unreliable at fine-grained absolute ratings.
@@ -131,11 +120,11 @@ class WorkflowService:
             cur.execute(
                 "INSERT OR IGNORE INTO workflow_state "
                 "(opportunity_id, stage, owner_role, entered_stage_at, updated_at) VALUES (?,?,?,?,?)",
-                (topic_id, "shortlisted", STAGE_OWNER_ROLE["shortlisted"], now, now),
+                (topic_id, "shortlisted", None, now, now),
             )
         return dict(self.db.query_one("SELECT * FROM workflow_state WHERE opportunity_id = ?", (topic_id,)))
 
-    def transition(self, topic_id: str, to_stage: str, actor: str, actor_role: str,
+    def transition(self, topic_id: str, to_stage: str, actor: str,
                    reason: str | None = None, owner: str | None = None) -> dict[str, Any]:
         if to_stage not in STAGES + TERMINAL_STAGES:
             raise ValueError(f"Unknown stage {to_stage!r}. Known: {STAGES + TERMINAL_STAGES}")
@@ -146,12 +135,12 @@ class WorkflowService:
                 "INSERT INTO workflow_transitions "
                 "(opportunity_id, from_stage, to_stage, actor, actor_role, reason, created_at) "
                 "VALUES (?,?,?,?,?,?,?)",
-                (topic_id, current["stage"], to_stage, actor, actor_role, reason, now),
+                (topic_id, current["stage"], to_stage, actor, "", reason, now),
             )
             cur.execute(
                 "UPDATE workflow_state SET stage = ?, owner_role = ?, owner = ?, "
                 "entered_stage_at = ?, updated_at = ?, note = ? WHERE opportunity_id = ?",
-                (to_stage, STAGE_OWNER_ROLE.get(to_stage), owner, now, now, reason, topic_id),
+                (to_stage, None, owner, now, now, reason, topic_id),
             )
         return self.state_for(topic_id)
 
@@ -187,18 +176,17 @@ class WorkflowService:
                     "INSERT OR IGNORE INTO workflow_state "
                     "(opportunity_id, stage, owner_role, entered_stage_at, updated_at) "
                     "VALUES (?,?,?,?,?)",
-                    [(topic_id, "shortlisted", STAGE_OWNER_ROLE["shortlisted"], now, now)
-                     for topic_id in missing],
+                    [(topic_id, "shortlisted", None, now, now) for topic_id in missing],
                 )
             for topic_id in missing:
                 state[topic_id] = {
                     "opportunity_id": topic_id, "stage": "shortlisted",
-                    "owner_role": STAGE_OWNER_ROLE["shortlisted"], "owner": None,
+                    "owner_role": None, "owner": None,
                     "entered_stage_at": now, "updated_at": now, "note": None,
                 }
         assessments: dict[str, list[dict[str, Any]]] = {}
         for row in self.db.query(
-            f"""SELECT opportunity_id, role, axis, rating, confidence, rationale, author, created_at
+            f"""SELECT opportunity_id, axis, rating, confidence, rationale, author, created_at
                 FROM assessments WHERE opportunity_id IN ({placeholders}) AND superseded = 0
                 ORDER BY created_at DESC""",
             params,
@@ -223,7 +211,6 @@ class WorkflowService:
         return {
             "stage": stage,
             "stage_label": STAGE_LABELS.get(stage, stage),
-            "owner_role": state.get("owner_role"),
             "owner": state.get("owner"),
             "entered_stage_at": entered,
             "age_in_stage_days": age_days,
@@ -237,29 +224,28 @@ class WorkflowService:
 
     # -- distributed assessment --------------------------------------------
 
-    def record_assessment(self, topic_id: str, role: str, rating: int, author: str,
+    def record_assessment(self, topic_id: str, axis: str, rating: int, author: str,
                           confidence: int = 3, rationale: str | None = None) -> dict[str, Any]:
-        if role not in ROLE_AXIS:
-            raise ValueError(f"Unknown role {role!r}. Known: {list(ROLE_AXIS)}")
+        if axis not in AXIS_LABELS:
+            raise ValueError(f"Unknown axis {axis!r}. Known: {AXES}")
         if not 0 <= int(rating) <= 5:
             raise ValueError("rating must be 0-5")
         if not 1 <= int(confidence) <= 5:
             raise ValueError("confidence must be 1-5")
-        axis = ROLE_AXIS[role]
         now = dt.datetime.now(dt.timezone.utc).isoformat(timespec="seconds")
         with self.db.cursor() as cur:
-            # One live assessment per author per role per topic; older ones are
+            # One live assessment per author per axis per topic; older ones are
             # superseded rather than deleted, because a changed mind is itself a
             # label worth keeping (§4.7.7).
             cur.execute(
                 "UPDATE assessments SET superseded = 1 "
-                "WHERE opportunity_id = ? AND role = ? AND author = ? AND superseded = 0",
-                (topic_id, role, author),
+                "WHERE opportunity_id = ? AND axis = ? AND author = ? AND superseded = 0",
+                (topic_id, axis, author),
             )
             cur.execute(
                 "INSERT INTO assessments (opportunity_id, role, axis, rating, confidence, "
                 "rationale, author, created_at, weight_set) VALUES (?,?,?,?,?,?,?,?,?)",
-                (topic_id, role, axis, int(rating), int(confidence), rationale, author,
+                (topic_id, "", axis, int(rating), int(confidence), rationale, author,
                  now, self.cfg.weight_set),
             )
         return self.conviction_for(topic_id)
@@ -276,7 +262,7 @@ class WorkflowService:
         """
         if rows is None:
             rows = self.db.query(
-                "SELECT role, axis, rating, confidence, rationale, author, created_at "
+                "SELECT axis, rating, confidence, rationale, author, created_at "
                 "FROM assessments WHERE opportunity_id = ? AND superseded = 0 ORDER BY created_at DESC",
                 (topic_id,),
             )
@@ -286,7 +272,7 @@ class WorkflowService:
             entry["ratings"].append(row["rating"])
             entry["weights"].append(row["confidence"])
             entry["voices"].append({
-                "role": row["role"], "rating": row["rating"], "confidence": row["confidence"],
+                "rating": row["rating"], "confidence": row["confidence"],
                 "rationale": row["rationale"], "author": row["author"], "at": row["created_at"],
             })
 
@@ -313,8 +299,7 @@ class WorkflowService:
             "assessed": assessed,
             "axes": axes,
             "score": overall,
-            "roles_responded": sorted({r["role"] for r in rows}),
-            "roles_missing": [r for r in ROLE_AXIS if r not in {row["role"] for row in rows}],
+            "axes_missing": [a for a in AXES if a not in axes],
             "sufficient": assessed >= self.min_assessments_for_conviction,
         }
 
@@ -323,8 +308,8 @@ class WorkflowService:
                        conviction: dict[str, Any] | None = None) -> dict[str, Any] | None:
         """§4.10 model C — surface disagreement as a review trigger.
 
-        Two comparisons, each between a published score and the role whose job
-        it is to know better:
+        Two comparisons, each between a published score and the internal axis
+        that should know better:
 
           attractiveness vs customer_demand   — the market says one thing, the
                                                 people talking to customers say another
@@ -409,12 +394,10 @@ class WorkflowService:
                 {
                     "id": stage,
                     "label": STAGE_LABELS[stage],
-                    "owner_role": STAGE_OWNER_ROLE.get(stage),
                     "count": len(columns.get(stage, [])),
                     "topics": columns.get(stage, []),
                 }
                 for stage in STAGES + TERMINAL_STAGES
             ],
-            "axes": [{"id": a, "label": AXIS_LABELS[a], "anchors": AXIS_ANCHORS[a],
-                      "role": r} for r, a in ROLE_AXIS.items()],
+            "axes": [{"id": a, "label": AXIS_LABELS[a], "anchors": AXIS_ANCHORS[a]} for a in AXES],
         }

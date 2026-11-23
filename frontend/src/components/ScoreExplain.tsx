@@ -400,8 +400,8 @@ export default function ScoreExplainModal({ topic, weights, onClose }: {
                 <span className="se-total">{topic.conviction.score?.toFixed(1) ?? '—'}</span>
               </div>
               <p className="se-sub-note">
-                What the three roles say. This is a <b>third</b> quantity — it never alters either
-                score above, and only changes what surfaces first for each role.
+                What the team says. This is a <b>third</b> quantity — it never alters either
+                score above.
               </p>
               {Object.entries(topic.conviction.axes).map(([axis, block]) => (
                 <div className="se-row" key={axis}>

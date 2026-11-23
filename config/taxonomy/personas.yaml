@@ -1,6 +1,6 @@
 # Target customer personas — fixed by the briefing deck (Table 7).
-# These are the personas of the CUSTOMER (who Orange sells to), not the three
-# radar user roles (which live in config/role_modes.yaml).
+# These are the personas of the CUSTOMER (who Orange sells to), not the
+# people using the radar.
 version: "2026-08-a"
 owner: "taxonomy-curator"
 items:

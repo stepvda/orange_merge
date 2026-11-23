@@ -478,7 +478,6 @@ class Config:
         self.strategy = _load_yaml("strategy.yaml")
         self.source_tiers = _load_yaml("source_tiers.yaml")
         self.sources = _load_yaml("sources.yaml")
-        self.role_modes_raw = _load_yaml("role_modes.yaml")
 
         self.verticals = Vocabulary("verticals", _load_yaml("taxonomy", "verticals.yaml"))
         self.use_cases = Vocabulary("use_cases", _load_yaml("taxonomy", "use_cases.yaml"))
@@ -612,16 +611,6 @@ class Config:
     @property
     def right_to_win_weights(self) -> dict[str, float]:
         return self.settings["right_to_win_weights"]
-
-    def role_mode(self, role: str) -> dict[str, Any]:
-        for mode in self.role_modes_raw["modes"]:
-            if mode["id"] == role:
-                return mode
-        raise KeyError(f"Unknown role mode: {role!r}. Known: {[m['id'] for m in self.role_modes_raw['modes']]}")
-
-    @property
-    def role_ids(self) -> list[str]:
-        return [m["id"] for m in self.role_modes_raw["modes"]]
 
     def enabled_sources(self) -> list[dict[str, Any]]:
         return [s for s in self.sources["sources"] if s.get("enabled")]
@@ -858,10 +847,6 @@ class Config:
             if vert_id not in self.verticals:
                 problems.append(f"strategy/privileged_verticals: unknown vertical {vert_id!r}")
 
-        for mode in self.role_modes_raw["modes"]:
-            for link_type in mode.get("link_types", []):
-                if link_type not in {"L0", "L1", "L2", "L3", "L4"}:
-                    problems.append(f"role_modes/{mode['id']}: unknown link type {link_type!r}")
 
         weight_sum = sum(self.attractiveness_weights.values())
         if abs(weight_sum - 1.0) > 1e-6:

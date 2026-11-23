@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import type { Topic } from '../types'
 import { HelpButton } from './Help'
 
-/** Visual stage-gate board and per-role assessment (FR-25, §4.10).
+/** Visual stage-gate board and team assessment (FR-25, §4.10).
  *
  * §4.10 recommends "A + B + D": run the stage gate as the backbone because it
  * produces accountability, and add distributed assessment (model C) once there
@@ -10,21 +10,21 @@ import { HelpButton } from './Help'
  *
  * Two design rules carried from the document:
  *
- *  - Each role rates ONLY its own axis. A salesperson is authoritative about
- *    whether customers are asking, and is not being asked to re-judge evidence.
+ *  - Three axes — strategic fit, customer demand, deliverability. Since roles
+ *    were removed (2026-11-23) anyone may rate any axis, and the server records
+ *    the signed-in user as the author.
  *  - Ratings are 0-5 with WRITTEN ANCHORS, not a slider. §4.7.4: "People are
  *    unreliable at rating a topic 73 out of 100 and reliable at saying which of
  *    two topics they would rather take into a meeting."
  */
 
 export interface WorkflowMeta {
-  stages: { id: string; label: string; owner_role: string | null }[]
+  stages: { id: string; label: string }[]
   terminal_stages: { id: string; label: string }[]
-  role_axis: Record<string, string>
+  axes: string[]
   axis_labels: Record<string, string>
   anchors: Record<string, Record<string, string>>
   divergence_threshold: number
-  conviction_ranking_weight: number
 }
 
 /** A board card is a PROJECTION of a topic, not the whole thing: the endpoint
@@ -41,18 +41,18 @@ export type BoardCard = Pick<Topic,
 }
 
 export interface BoardData {
-  stages: { id: string; label: string; owner_role: string | null; count: number; topics: BoardCard[] }[]
-  axes: { id: string; label: string; role: string; anchors: Record<string, string> }[]
+  stages: { id: string; label: string; count: number; topics: BoardCard[] }[]
+  axes: { id: string; label: string; anchors: Record<string, string> }[]
 }
 
-export function AssessmentWidget({ topic, role, meta, onSubmitted, onHelp }: {
+export function AssessmentWidget({ topic, meta, onSubmitted, onHelp }: {
   topic: Topic
-  role: string
   meta: WorkflowMeta
   onSubmitted: () => void
   onHelp?: (topic: string) => void
 }) {
-  const axis = meta.role_axis[role]
+  const axes = meta.axes ?? Object.keys(meta.axis_labels)
+  const [axis, setAxis] = useState(axes[0])
   const anchors = meta.anchors[axis] ?? {}
   const [rating, setRating] = useState<number | null>(null)
   const [hovered, setHovered] = useState<number | null>(null)
@@ -61,7 +61,7 @@ export function AssessmentWidget({ topic, role, meta, onSubmitted, onHelp }: {
   const [saving, setSaving] = useState(false)
   const [saved, setSaved] = useState(false)
 
-  useEffect(() => { setRating(null); setRationale(''); setSaved(false) }, [topic.id, role])
+  useEffect(() => { setRating(null); setRationale(''); setSaved(false) }, [topic.id, axis])
 
   const shown = hovered ?? rating
   const conviction = topic.conviction
@@ -74,13 +74,8 @@ export function AssessmentWidget({ topic, role, meta, onSubmitted, onHelp }: {
       await fetch(`/api/topics/${topic.id}/assessment`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          role, rating, confidence,
-          rationale: rationale.trim() || null,
-          // A real deployment takes this from the session; the prototype is
-          // explicit about it rather than pretending to know who you are.
-          author: `${role}@demo`,
-        }),
+        // The server records the signed-in user as the author.
+        body: JSON.stringify({ axis, rating, confidence, rationale: rationale.trim() || null }),
       })
       setSaved(true)
       onSubmitted()
@@ -93,8 +88,17 @@ export function AssessmentWidget({ topic, role, meta, onSubmitted, onHelp }: {
     <div className="assess-box">
       <div style={{ fontSize: 11, textTransform: 'uppercase', letterSpacing: '.06em',
                     color: 'var(--text-muted)', marginBottom: 7 }}>
-        Your assessment · {meta.axis_labels[axis]}
+        Your assessment
         {onHelp && <HelpButton topic="assessment" onOpen={onHelp} />}
+      </div>
+
+      {/* Which axis this rating is for. Anyone may rate any of the three. */}
+      <div className="btn-group" role="group" aria-label="Axis to rate" style={{ marginBottom: 8 }}>
+        {axes.map((id) => (
+          <button key={id} aria-pressed={axis === id} onClick={() => setAxis(id)}>
+            {meta.axis_labels[id] ?? id}
+          </button>
+        ))}
       </div>
 
       <div className="rating" onMouseLeave={() => setHovered(null)}>
@@ -166,9 +170,8 @@ export function ConvictionPanel({ topic }: { topic: Topic }) {
   if (!conviction || !conviction.assessed) {
     return (
       <p style={{ fontSize: 12, color: 'var(--text-muted)', margin: 0 }}>
-        No role has assessed this topic yet. Conviction is a third quantity beside
-        attractiveness and right-to-win — it never changes either of them, it only
-        changes what surfaces first for each role.
+        Nobody has assessed this topic yet. Conviction is a third quantity beside
+        attractiveness and right-to-win, and it never changes either of them.
       </p>
     )
   }
@@ -191,9 +194,9 @@ export function ConvictionPanel({ topic }: { topic: Topic }) {
           <div className="component-num">{block.score.toFixed(0)}</div>
         </div>
       ))}
-      {conviction.roles_missing.length > 0 && (
+      {conviction.axes_missing.length > 0 && (
         <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 6 }}>
-          Not yet assessed by: {conviction.roles_missing.join(', ')}
+          Not yet rated: {conviction.axes_missing.map((a) => a.replace(/_/g, ' ')).join(', ')}
         </div>
       )}
       {topic.divergence && (
@@ -209,8 +212,8 @@ export function ConvictionPanel({ topic }: { topic: Topic }) {
   )
 }
 
-export function StageControl({ topic, role, meta, onMoved }: {
-  topic: Topic; role: string; meta: WorkflowMeta; onMoved: () => void
+export function StageControl({ topic, meta, onMoved }: {
+  topic: Topic; meta: WorkflowMeta; onMoved: () => void
 }) {
   const [busy, setBusy] = useState(false)
   const wf = topic.workflow
@@ -222,7 +225,8 @@ export function StageControl({ topic, role, meta, onMoved }: {
       await fetch(`/api/topics/${topic.id}/stage`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ to_stage: to, actor: `${role}@demo`, actor_role: role }),
+        // The server records the signed-in user as the actor.
+        body: JSON.stringify({ to_stage: to }),
       })
       onMoved()
     } finally {
@@ -235,7 +239,7 @@ export function StageControl({ topic, role, meta, onMoved }: {
       <div style={{ fontSize: 12.5, marginBottom: 7 }}>
         Stage <b>{wf.stage_label}</b>
         <span style={{ color: 'var(--text-muted)' }}>
-          {' '}· owned by {wf.owner_role ?? 'unassigned'} · {wf.age_in_stage_days}d in stage
+          {' '}· {wf.age_in_stage_days}d in stage
         </span>
         {wf.stalled && (
           <span style={{ color: 'var(--status-warning)' }}> · stalled</span>
@@ -342,7 +346,6 @@ export function Board({ board, selectedId, onSelect, onExplain, onMove }: {
             <h4>{stage.label} <span style={{ color: 'var(--text-muted)', fontFamily: 'var(--mono)' }}>
               {stage.count}
             </span></h4>
-            {stage.owner_role && <div className="owner">owner: {stage.owner_role}</div>}
           </div>
           <div className="board-body">
             {stage.topics.map((topic) => (

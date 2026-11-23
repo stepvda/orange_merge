@@ -532,7 +532,7 @@ def test_a_generation_run_does_not_become_the_freshness_date(cfg, db):
 
     latest = db.query_one("SELECT id FROM refreshes ORDER BY started_at DESC LIMIT 1")
     assert latest["id"].startswith("G-"), "the generation row is written and is the newest"
-    assert ReadModel(cfg, db).view("strategist")["last_refresh"]["started_at"].startswith("2026-07-01")
+    assert ReadModel(cfg, db).view()["last_refresh"]["started_at"].startswith("2026-07-01")
 
 
 def test_the_refresh_log_still_lists_generation_runs_but_labels_them(cfg, db):

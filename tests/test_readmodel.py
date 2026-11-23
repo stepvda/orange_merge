@@ -1,11 +1,14 @@
-"""Role-mode ranking, filtering and serving guarantees (FR-13, FR-21, FR-31, AC-04/05)."""
+"""Filtering, sorting and serving guarantees (FR-21, AC-04/05).
+
+Role modes were removed on 2026-11-23: every view shows every live space.
+"""
 
 from __future__ import annotations
 
 import pytest
 
 from radar.config import get_config
-from radar.readmodel import SORTS, ReadModel, _for_list, _matches, _sorted
+from radar.readmodel import DEFAULT_SORT, SORTS, ReadModel, _for_list, _matches, _sorted, next_action
 
 
 @pytest.fixture(scope="module")
@@ -27,7 +30,7 @@ def topic(topic_id: str, **overrides):
         "state": "active",
         "horizon": "next",
         "why_hot": [],
-        "next_actions": {},
+        "next_action": None,
         "attractiveness": {"score": 70.0, "components": {"novelty_momentum": 60.0}, "weight_set": "w"},
         "right_to_win": {"score": 50.0, "components": {}, "weight_set": "w"},
         "portfolio_distance": 0,
@@ -41,115 +44,48 @@ def topic(topic_id: str, **overrides):
 
 
 # ---------------------------------------------------------------------------
-# FR-31 — role-mode filtering is driven by portfolio distance
+# No roles: everything is shown, attractiveness first
 # ---------------------------------------------------------------------------
 
-def test_sales_never_sees_white_space(cfg):
-    """§4.5.3: a high-attractiveness L4 topic is "precisely the thing a
-    salesperson should never be shown"."""
+def test_the_default_order_is_attractiveness():
+    assert DEFAULT_SORT == "attractiveness"
+    assert "rank" not in SORTS, "the role ranking function is gone"
+    ordered = _sorted([
+        topic("LOW", attractiveness={"score": 30.0}),
+        topic("HIGH", attractiveness={"score": 90.0}),
+        topic("UNSCORED", attractiveness=None),
+    ], DEFAULT_SORT)
+    assert [t["id"] for t in ordered] == ["HIGH", "LOW", "UNSCORED"]
+
+
+def test_the_view_shows_every_space_with_no_cap_or_role_filter(cfg, monkeypatch):
+    """White space (L4), no-reference and evidence-gap spaces used to be hidden
+    from some roles, and every view was capped. Now all of them are shown."""
     read = ReadModel(cfg, db=None)
-    white_space = topic("OS-WS", link_types=["L4"], portfolio_distance=4,
-                        attractiveness={"score": 95.0, "components": {}, "weight_set": "w"})
-    assert read.rank([white_space], "sales") == []
-    # ...but it is exactly what the strategist is looking for.
-    assert len(read.rank([white_space], "strategist")) == 1
+    spaces = [topic(f"OS{i:03}", attractiveness={"score": float(i)}) for i in range(40)]
+    spaces += [topic("OS-WS", link_types=["L4"], portfolio_distance=4, links=[]),
+               topic("OS-GAP", evidence_gap_warning=True)]
+    monkeypatch.setattr(read, "topics", lambda: spaces)
+
+    class _NoRefresh:
+        @staticmethod
+        def query_one(*args, **kwargs):
+            return None
+    read.db = _NoRefresh()
+    view = read.view()
+    assert view["total_matching"] == len(view["topics"]) == 42
+    assert view["sort"] == "attractiveness"
+    # The two formerly-hidden spaces score 70, the highest, so they lead.
+    assert {t["id"] for t in view["topics"][:2]} == {"OS-WS", "OS-GAP"}
+    assert "role" not in view and "exploration" not in view and "cap" not in view
 
 
-def test_sales_requires_a_published_reference_in_the_vertical(cfg):
-    """§4.5.3 makes the sales acceptance criterion computable."""
-    read = ReadModel(cfg, db=None)
-    no_reference = topic("OS-NR", links=[{"node_type": "offer", "link_type": "L0"}])
-    assert read.rank([no_reference], "sales") == []
-    with_reference = topic("OS-R", links=[
-        {"node_type": "offer", "link_type": "L0"},
-        {"node_type": "reference", "link_type": "SUP"},
-    ])
-    assert len(read.rank([with_reference], "sales")) == 1
-
-
-def test_sales_excludes_evidence_gap_topics(cfg):
-    """SC-13 / §2.7: a radar that ignores the reference asymmetry hands a
-    salesperson a topic with no proof point behind it."""
-    read = ReadModel(cfg, db=None)
-    gapped = topic("OS-GAP", evidence_gap_warning=True,
-                   link_types=["L0", "L2"], portfolio_distance=0)
-    assert read.rank([gapped], "sales") == []
-    # The strategist still sees it — the gap is information, not a disqualifier.
-    assert len(read.rank([gapped], "strategist")) == 1
-
-
-def test_a_directly_sellable_topic_is_not_on_the_strategist_agenda(cfg):
-    """§4.5.3: sales sees L0-L1, presales L0-L2, strategy L1-L4.
-
-    A topic an existing offer already addresses needs no study, so it does not
-    belong in the "where do we invest next quarter" view.
-    """
-    read = ReadModel(cfg, db=None)
-    sellable = topic("OS-L0", link_types=["L0"], portfolio_distance=0)
-    assert read.rank([sellable], "strategist") == []
-    assert len(read.rank([sellable], "sales")) == 1
-    assert len(read.rank([sellable], "presales")) == 1
-
-
-def test_supporting_links_alone_do_not_qualify_a_topic_for_sales(cfg):
-    """A certification is not a delivery path — see graph.SUPPORTING."""
-    read = ReadModel(cfg, db=None)
-    only_supporting = topic("OS-SUP", link_types=["SUP"], portfolio_distance=4,
-                            links=[{"node_type": "certification", "link_type": "SUP"},
-                                   {"node_type": "reference", "link_type": "SUP"}])
-    assert read.rank([only_supporting], "sales") == []
-
-
-# ---------------------------------------------------------------------------
-# FR-13 / §3.2 — each role has a DISTINCT ranking function
-# ---------------------------------------------------------------------------
-
-def test_roles_rank_the_same_topics_differently(cfg):
-    """§3.2: "The same topic can be excellent for a strategist and useless for a
-    salesperson. The system must express this as different default ranking
-    functions per role mode, not as a single score with different filters."
-    """
-    read = ReadModel(cfg, db=None)
-    links = [{"node_type": "offer", "link_type": "L0"}, {"node_type": "reference", "link_type": "SUP"}]
-    early_and_big = topic(
-        "OS-EARLY", link_types=["L0", "L2"], portfolio_distance=2, links=links,
-        attractiveness={"score": 90.0, "components": {"novelty_momentum": 95.0}, "weight_set": "w"},
-        right_to_win={"score": 20.0, "components": {"reference_density": 10.0}, "weight_set": "w"},
-    )
-    sellable_now = topic(
-        "OS-SELL", link_types=["L0"], portfolio_distance=0, links=links,
-        attractiveness={"score": 55.0, "components": {"novelty_momentum": 30.0}, "weight_set": "w"},
-        right_to_win={"score": 85.0, "components": {"reference_density": 90.0,
-                                                    "external_validation": 100.0}, "weight_set": "w"},
-    )
-    topics = [early_and_big, sellable_now]
-    # Both carry an L1 link so both are visible to every role; only the ranking
-    # function differs, which is the point of §3.2.
-    for t in topics:
-        t["link_types"] = sorted(set(t["link_types"]) | {"L1"})
-    assert read.rank(list(topics), "strategist")[0]["id"] == "OS-EARLY"
-    assert read.rank(list(topics), "sales")[0]["id"] == "OS-SELL"
-
-
-def test_ranking_is_explained_not_just_produced(cfg):
-    """NFR-01: if a user cannot explain why a topic is ranked where it is, the
-    scoring is not good enough (§3.8)."""
-    read = ReadModel(cfg, db=None)
-    ranked = read.rank([topic("OS-1", link_types=["L2"], portfolio_distance=2)], "strategist")
-    explanation = ranked[0]["rank_explanation"]
-    assert explanation
-    for term, detail in explanation.items():
-        assert {"value", "weight", "contribution"} <= set(detail), term
-
-
-def test_low_right_to_win_is_a_flag_for_the_strategist_not_a_penalty(cfg):
-    """Table 33: for the strategist, "low right-to-win is not a penalty but a flag"."""
-    read = ReadModel(cfg, db=None)
-    weak = topic("OS-WEAK", link_types=["L3"], portfolio_distance=3,
-                 right_to_win={"score": 10.0, "components": {}, "weight_set": "w"})
-    ranked = read.rank([weak], "strategist")
-    assert ranked[0].get("strategist_flag")
-    assert cfg.role_mode("strategist")["ranking"]["right_to_win"] == 0.0
+def test_next_action_prefers_the_single_action_and_reads_old_per_role_records():
+    assert next_action({"next": "Do this."}) == "Do this."
+    # Records written before roles were removed hold one action per role.
+    assert next_action({"sales": "Sell it.", "strategist": "Study it."}) == "Study it."
+    assert next_action({"sales": "Sell it."}) == "Sell it."
+    assert next_action({}) is None and next_action(None) is None
 
 
 # ---------------------------------------------------------------------------
@@ -225,23 +161,6 @@ def test_competition_sort_puts_the_open_field_first():
     assert [t["id"] for t in ordered] == ["OS002", "OS003", "OS001"]
 
 
-def test_sorting_never_widens_what_a_role_may_see(cfg):
-    """FR-13 and §4.5.3: sort re-orders the eligible set, it does not replace it.
-
-    A salesperson sorting by market size must still be unable to reach white
-    space — the largest markets in the radar are exactly the ones with no proof
-    point behind them, so this is the failure mode that matters.
-    """
-    read = ReadModel(cfg, db=None)
-    topics = [
-        sized("OS001", 9e9, "low", portfolio_distance=4, link_types=["L4"], links=[]),
-        sized("OS002", 1e6, "low"),
-    ]
-    ranked = read.rank(topics, "sales")
-    ordered = _sorted(ranked, "market_size")
-    assert [t["id"] for t in ordered] == ["OS002"]
-
-
 @pytest.mark.parametrize("sort", sorted(SORTS))
 def test_every_advertised_sort_is_total_and_stable(sort):
     """A sort the API advertises must order every topic, including empty ones."""
@@ -272,20 +191,17 @@ def test_list_rows_drop_detail_only_fields_but_keep_what_they_render():
     row = _for_list(topic(
         "OS001",
         why_hot=[{"claim": "c", "signals": ["SIG-1"]}],
-        next_actions={"sales": "do the thing"},
-        rank_explanation={"attractiveness": {"value": 1, "weight": 1, "contribution": 1}},
+        next_action="do the thing",
         provenance={"pipeline_version": "0.1.0"},
         competition={"level": "high", "level_label": "High", "meaning": "crowded",
                      "competitors": [{"id": "x"}], "inputs": {"bands": {}}},
         conviction={"assessed": 1, "score": 60.0,
                     "axes": {"customer_demand": {"score": 60.0, "voices": [{"author": "a"}]}}},
     ))
-    for dropped in ("links", "why_hot", "rank_explanation", "provenance"):
+    for dropped in ("links", "why_hot", "provenance"):
         assert dropped not in row
-    # AC-03 keeps this one: the CLI list prints the role's next action, and
-    # "every topic in every role mode renders a non-empty action" is a
-    # requirement rather than a nicety.
-    assert row["next_actions"]["sales"] == "do the thing"
+    # The CLI list prints the next action, so it stays on the row.
+    assert row["next_action"] == "do the thing"
     # ... and everything a row or a marker actually draws survives.
     for kept in ("id", "statement", "labels", "triple", "domains", "horizon", "state",
                  "attractiveness", "right_to_win", "portfolio_distance", "signal_count",

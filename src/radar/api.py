@@ -51,10 +51,9 @@ from .presales import (PreSalesBuilder, collateral_for_topic, collateral_path,
 from .reference import ReferenceDataFetcher, reference_status
 from .scoping import MAX_MESSAGE_CHARS, MAX_MESSAGES, ScopingError, ScopingService
 from .sizing import MarketSizer, sizes_for_topic
-from .workflow import (AXIS_ANCHORS, AXIS_LABELS, ROLE_AXIS, STAGE_LABELS,
-                       STAGE_OWNER_ROLE, STAGES, WorkflowService)
-from .readmodel import (NOT_A_GENERATION, SORTS, ReadModel, facet_counts, matches_filters,
-                        refresh_kind, topic_for_list)
+from .workflow import AXES, AXIS_ANCHORS, AXIS_LABELS, STAGE_LABELS, STAGES, WorkflowService
+from .readmodel import (DEFAULT_SORT, NOT_A_GENERATION, SORTS, ReadModel, facet_counts,
+                        matches_filters, refresh_kind, sort_topics, topic_for_list)
 
 log = logging.getLogger(__name__)
 
@@ -196,6 +195,11 @@ try:
 except Exception as exc:  # noqa: BLE001 — same rule as the schema call above
     bootstrap.STARTUP_ERROR = bootstrap.STARTUP_ERROR or f"{type(exc).__name__}: {exc}"
     log.error("Could not mount the portfolio router: %s", exc)
+
+
+def _username(request: Request) -> str:
+    """The signed-in user's name, recorded as author / actor instead of a role."""
+    return (getattr(request.state, "user", None) or {}).get("username") or "unknown"
 
 
 def _llm() -> LLMClient:
@@ -351,7 +355,7 @@ def change_password(payload: PasswordChangeIn, request: Request,
 
 @app.get("/api/meta")
 def meta() -> dict[str, Any]:
-    """Controlled vocabularies, role modes and filter dimensions (AC-04, FR-12)."""
+    """Controlled vocabularies and filter dimensions (AC-04, FR-12)."""
     # AC-02 freshness is a claim about when evidence was last COLLECTED, so an
     # on-demand generation run is excluded: it reorganises the corpus it was
     # given and would otherwise stamp today's date over a six-week-old one.
@@ -387,19 +391,8 @@ def meta() -> dict[str, Any]:
             {"id": key, "meaning": value[0], "definition": value[1], "owner": value[2], "action": value[3]}
             for key, value in LINK_MEANING.items()
         ],
-        "roles": [
-            {
-                "id": mode["id"],
-                "label": mode["label"],
-                "description": mode["description"],
-                "primary_action": mode["primary_action"],
-                "link_types": mode["link_types"],
-                "acceptance": mode.get("acceptance"),
-                "ranking": mode["ranking"],
-            }
-            for mode in _cfg.role_modes_raw["modes"]
-        ],
         "sorts": [{"id": key, "label": label} for key, label in SORTS.items()],
+        "default_sort": DEFAULT_SORT,
         "competition_levels": [
             {"id": level, "meaning": meaning} for level, meaning in LEVEL_MEANING.items()
         ],
@@ -424,7 +417,6 @@ def meta() -> dict[str, Any]:
 
 @app.get("/api/view")
 def view(
-    role: str = Query("strategist"),
     vertical: list[str] | None = Query(None),
     domain: list[str] | None = Query(None),
     svp: list[str] | None = Query(None),
@@ -437,11 +429,12 @@ def view(
     has_brief: bool = Query(False),
     q: str | None = Query(None),
     limit: int | None = Query(None),
-    sort: str = Query("rank"),
+    sort: str = Query(DEFAULT_SORT),
 ) -> dict[str, Any]:
-    """The capped, filtered, role-ranked radar view (FR-13, FR-21, FR-22, AC-05)."""
-    if role not in _cfg.role_ids:
-        raise HTTPException(400, f"Unknown role {role!r}. Known: {_cfg.role_ids}")
+    """Every live opportunity space matching the filters, sorted (FR-21, AC-05).
+
+    No role and no cap since 2026-11-23: the radar and the list show them all.
+    """
     if sort not in SORTS:
         raise HTTPException(400, f"Unknown sort {sort!r}. Known: {list(SORTS)}")
     filters = {
@@ -454,7 +447,7 @@ def view(
         )
         if value
     }
-    return _read.view(role, filters, limit, sort=sort)
+    return _read.view(filters, limit, sort=sort)
 
 
 @app.get("/api/topics/{topic_id}")
@@ -587,7 +580,6 @@ def graph_node(node_id: str) -> dict[str, Any]:
 
 
 class FeedbackIn(BaseModel):
-    role: str
     kind: str = Field(description="rating | comparison | override | engagement")
     opportunity_id: str | None = None
     other_opportunity_id: str | None = None
@@ -609,8 +601,6 @@ def submit_feedback(payload: FeedbackIn) -> dict[str, Any]:
     rather take into a meeting." Both shapes are accepted; the comparison shape
     is the one that produces usable ranking labels.
     """
-    if payload.role not in _cfg.role_ids:
-        raise HTTPException(400, f"Unknown role {payload.role!r}")
     if payload.kind not in ("rating", "comparison", "override", "engagement"):
         raise HTTPException(400, f"Unknown feedback kind {payload.kind!r}")
     if payload.kind == "comparison" and not payload.other_opportunity_id:
@@ -622,7 +612,7 @@ def submit_feedback(payload: FeedbackIn) -> dict[str, Any]:
             """INSERT INTO feedback (created_at, role, kind, opportunity_id, other_opportunity_id,
                                      verdict, reason, exposure_context)
                VALUES (?,?,?,?,?,?,?,?)""",
-            (now, payload.role, payload.kind, payload.opportunity_id, payload.other_opportunity_id,
+            (now, "", payload.kind, payload.opportunity_id, payload.other_opportunity_id,
              payload.verdict, payload.reason, js(payload.exposure_context)),
         )
     return {"stored": True, "at": now}
@@ -632,18 +622,13 @@ def submit_feedback(payload: FeedbackIn) -> dict[str, Any]:
 def feedback_stats() -> dict[str, Any]:
     """How close the learned-ranking model is to being trainable (§4.7.4).
 
-    "Roughly three to six hundred comparisons per role is enough to fit a ranker
-    over the feature set above."
+    "Roughly three to six hundred comparisons is enough to fit a ranker over the
+    feature set above."
     """
-    rows = _db.query(
-        "SELECT role, kind, COUNT(*) AS n FROM feedback GROUP BY role, kind"
-    )
-    by_role: dict[str, dict[str, int]] = {}
-    for row in rows:
-        by_role.setdefault(row["role"], {})[row["kind"]] = row["n"]
+    rows = _db.query("SELECT kind, COUNT(*) AS n FROM feedback GROUP BY kind")
     return {
-        "by_role": by_role,
-        "comparisons_needed_per_role": {"min": 300, "max": 600},
+        "by_kind": {row["kind"]: row["n"] for row in rows},
+        "comparisons_needed": {"min": 300, "max": 600},
         "note": "Problem A (relevance ranking) needs human labels; Problem B "
                 "(emergence forecasting) is self-supervised from historical replay (§4.7.2).",
     }
@@ -690,52 +675,38 @@ def health() -> dict[str, Any]:
 
 
 @app.get("/api/workflow/board")
-def workflow_board(role: str | None = Query(None)) -> dict[str, Any]:
-    """Stage-gate board (§4.10 model A).
-
-    Optionally ranked for a role, so a stage owner sees their column in their
-    own priority order rather than an arbitrary one.
-    """
+def workflow_board() -> dict[str, Any]:
+    """Stage-gate board (§4.10 model A), each column by attractiveness."""
     topics = _read.topics(states=("active", "watchlist", "fading", "candidate"))
-    if role:
-        if role not in _cfg.role_ids:
-            raise HTTPException(400, f"Unknown role {role!r}")
-        # Order for the role, but do NOT filter: the board is a workflow view,
-        # and a stage owner has to see everything in their column.
-        topics = _read.rank(topics, role, apply_role_filter=False)
-    return _workflow.board(topics)
+    return _workflow.board(sort_topics(topics, DEFAULT_SORT))
 
 
 @app.get("/api/workflow/meta")
 def workflow_meta() -> dict[str, Any]:
-    """Stages, per-role axes and the rating anchors the UI renders."""
+    """Stages, assessment axes and the rating anchors the UI renders."""
     return {
-        "stages": [
-            {"id": s, "label": STAGE_LABELS[s], "owner_role": STAGE_OWNER_ROLE.get(s)}
-            for s in STAGES
-        ],
+        "stages": [{"id": s, "label": STAGE_LABELS[s]} for s in STAGES],
         "terminal_stages": [
             {"id": s, "label": STAGE_LABELS[s]} for s in ("parked", "rejected")
         ],
-        "role_axis": ROLE_AXIS,
+        "axes": AXES,
         "axis_labels": AXIS_LABELS,
         "anchors": AXIS_ANCHORS,
         "divergence_threshold": _cfg.settings["workflow"]["divergence_threshold"],
-        "conviction_ranking_weight": _cfg.settings["workflow"]["conviction_ranking_weight"],
     }
 
 
 class AssessmentIn(BaseModel):
-    role: str = Field(description="strategist | sales | presales")
+    axis: str = Field(description="strategic_fit | customer_demand | deliverability")
     rating: int = Field(ge=0, le=5)
-    author: str
+    author: str | None = Field(None, description="Defaults to the signed-in user.")
     confidence: int = Field(3, ge=1, le=5)
     rationale: str | None = None
 
 
 @app.post("/api/topics/{topic_id}/assessment")
-def submit_assessment(topic_id: str, payload: AssessmentIn) -> dict[str, Any]:
-    """§4.10 model C — each role rates its own axis.
+def submit_assessment(topic_id: str, payload: AssessmentIn, request: Request) -> dict[str, Any]:
+    """§4.10 model C — any signed-in user rates any of the three axes.
 
     §4.7.4: "ask for comparisons, not scores ... People are unreliable at rating
     a topic 73 out of 100". Hence a 0-5 scale with written anchors, and a
@@ -745,7 +716,7 @@ def submit_assessment(topic_id: str, payload: AssessmentIn) -> dict[str, Any]:
         raise HTTPException(404, f"No such topic: {topic_id}")
     try:
         conviction = _workflow.record_assessment(
-            topic_id, payload.role, payload.rating, payload.author,
+            topic_id, payload.axis, payload.rating, payload.author or _username(request),
             payload.confidence, payload.rationale,
         )
     except ValueError as exc:
@@ -761,20 +732,19 @@ def submit_assessment(topic_id: str, payload: AssessmentIn) -> dict[str, Any]:
 
 class TransitionIn(BaseModel):
     to_stage: str
-    actor: str
-    actor_role: str
+    actor: str | None = Field(None, description="Defaults to the signed-in user.")
     reason: str | None = None
     owner: str | None = None
 
 
 @app.post("/api/topics/{topic_id}/stage")
-def move_stage(topic_id: str, payload: TransitionIn) -> dict[str, Any]:
+def move_stage(topic_id: str, payload: TransitionIn, request: Request) -> dict[str, Any]:
     """Advance, park or reject a topic in the stage gate (§4.10 model A)."""
     if _read.topic(topic_id) is None:
         raise HTTPException(404, f"No such topic: {topic_id}")
     try:
         return _workflow.transition(
-            topic_id, payload.to_stage, payload.actor, payload.actor_role,
+            topic_id, payload.to_stage, payload.actor or _username(request),
             payload.reason, payload.owner,
         )
     except ValueError as exc:
@@ -1686,10 +1656,10 @@ def generation_matching(
 ) -> dict[str, Any]:
     """The opportunity spaces that ALREADY meet the criteria a run would use.
 
-    Deliberately not `/api/view`: that endpoint filters by role first (§4.5.3),
-    and "what does a salesperson get to see" is the wrong question here.
-    Generation writes to the whole corpus, so the screen has to show the whole
-    corpus, or someone asks for five more in a cell that already holds eleven.
+    Not `/api/view`: generation also counts candidate and dormant spaces, which
+    the radar does not show. Generation writes to the whole corpus, so the screen
+    has to show the whole corpus, or someone asks for five more in a cell that
+    already holds eleven.
 
     Filtering uses the read model's own `_matches`, so this count means exactly
     what the same filters mean on the radar — including its rule that a space

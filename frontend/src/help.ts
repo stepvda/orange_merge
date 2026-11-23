@@ -2,7 +2,7 @@
  *
  * The radar is full of terms that are precise inside the requirements document
  * and opaque outside it — portfolio distance, conviction, evidence gap, source
- * tier, exploration slot. A user who does not know what "L2" means cannot act
+ * tier. A user who does not know what "L2" means cannot act
  * on a topic, which defeats AC-03.
  *
  * Each entry explains WHAT the thing is, WHY it works that way, and WHERE it
@@ -49,7 +49,7 @@ export const HELP: Record<string, HelpEntry> = {
     ref: 'SC-12, SC-15',
     body: [
       'Computed from the Orange Business Graph as **named query results**, never asserted by a language model: matching offers, published references in the vertical, partner tiers, certifications, analyst positions, capability pools and technology ownership.',
-      'It is deliberately kept **separate** from attractiveness and never combined with it. The two answer different questions and are owned by different people — a topic can be excellent for a strategist (large, early, no proof points) and useless for a salesperson (nothing to show a customer).',
+      'It is deliberately kept **separate** from attractiveness and never combined with it. The two answer different questions — a topic can be large and early with no proof points yet, or modest but sellable today, and one blended number would hide which.',
     ],
   },
 
@@ -57,11 +57,10 @@ export const HELP: Record<string, HelpEntry> = {
     title: 'Conviction — "do our own people believe it?"',
     ref: 'FR-25, §4.10 model C',
     body: [
-      'A **third** quantity beside attractiveness and right to win, built from what the three roles say rather than from evidence or assets.',
-      'Each role rates only its own axis: strategy rates strategic fit, sales rates customer demand, presales rates deliverability. A salesperson is authoritative about whether customers are asking, and is not being asked to re-judge the evidence base.',
+      'A **third** quantity beside attractiveness and right to win, built from what the team says rather than from evidence or assets.',
+      'There are three axes: **strategic fit**, **customer demand** and **deliverability**. Anyone can rate any of them.',
       'Ratings are 0–5 with written anchors and a separate confidence, because people are unreliable at rating something "73 out of 100" but reliable at picking a level with a description attached.',
-      '**Conviction never changes attractiveness or right to win.** It only changes what surfaces first for each role. Internal judgement adjusts discovery; it does not replace it.',
-      'A topic nobody has rated sits neutral, not last — "nobody has looked yet" is not the same as "everybody hates it".',
+      '**Conviction never changes attractiveness or right to win.** It is shown beside them. Internal judgement informs discovery; it does not replace it.',
     ],
   },
 
@@ -70,8 +69,8 @@ export const HELP: Record<string, HelpEntry> = {
     ref: '§4.10 model C',
     body: [
       'Where the team and the evidence disagree by more than the configured threshold, the topic is flagged for review rather than averaged away.',
-      'Two comparisons are made: **customer demand vs attractiveness**, and **deliverability vs right to win** — in each case a published score against the role whose job it is to know better.',
-      'This is the most interesting row in the system. If sales rates demand far below a high attractiveness score, either the radar is reading the market wrong, or the market is moving before the sales conversations are. Either way a human should look.',
+      'Two comparisons are made: **customer demand vs attractiveness**, and **deliverability vs right to win** — in each case a published score against the internal axis that should know better.',
+      'This is the most interesting row in the system. If the team rates demand far below a high attractiveness score, either the radar is reading the market wrong, or the market is moving before the sales conversations are. Either way a human should look.',
       'Disagreement is information, not friction.',
     ],
   },
@@ -86,7 +85,7 @@ export const HELP: Record<string, HelpEntry> = {
       '**L2 Partner-dependent** — needs a capability a partner already holds. Presales/alliances: assemble it.',
       '**L3 Adjacent** — needs one capability built or acquired, but nearby assets exist. Strategy: study it.',
       '**L4 White space** — no plausible path from the current portfolio. Strategy: watch it, or reject it explicitly.',
-      'This is what drives the role modes: sales sees L0–L1, presales L0–L2, strategy L1–L4. A high-attractiveness L4 topic is exactly the strategist\'s innovation agenda — and exactly what a salesperson should never be shown.',
+      'Every space is shown on the radar and in the list whatever its distance; the distance tells you what kind of action fits it.',
       '**SUP** marks supporting evidence — a certification, a reference, an analyst position. These strengthen the case but deliver nothing on their own, so they never shorten the distance.',
     ],
   },
@@ -158,24 +157,12 @@ export const HELP: Record<string, HelpEntry> = {
     ],
   },
 
-  role_modes: {
-    title: 'Role modes',
-    ref: 'FR-13, FR-31',
-    body: [
-      'The same data, three different ranking functions — not one score with different filters.',
-      '**Strategist** — attractiveness and novelty first; low right-to-win is a flag, not a penalty. Sees L1–L4.',
-      '**Sales** — right to win and proof-point density first. Only topics with a delivery path *and* a published reference in the vertical *and* no evidence gap.',
-      '**Presales** — differentiation: where Orange has assets and the market has few credible providers. Sees L0–L2.',
-      'The filters fall out of portfolio distance rather than being arbitrary presets.',
-    ],
-  },
-
   workflow: {
     title: 'The stage gate',
     ref: 'FR-25, §4.10 model A',
     body: [
-      'A topic moves **Shortlisted → Demand-tested → Packaged → Live**, and ownership follows the stage: strategist, then sales, then presales.',
-      'The known weakness of a stage gate is latency — a topic can die waiting for a stage owner. So time-in-stage is tracked and stalled cards are flagged rather than left for someone to notice.',
+      'A topic moves **Shortlisted → Demand-tested → Packaged → Live**.',
+      'The known weakness of a stage gate is latency — a topic can die waiting. So time-in-stage is tracked and stalled cards are flagged rather than left for someone to notice.',
       'Every transition records who moved it and why.',
       'Cards are also marked when the team and the evidence disagree, which is a signal to look before advancing.',
     ],
@@ -185,20 +172,10 @@ export const HELP: Record<string, HelpEntry> = {
     title: 'Assessing a topic',
     ref: '§4.10 model C, §4.7.4',
     body: [
-      'You rate only the axis your role owns. Hover a level to see exactly what it means — the written anchors are what make a 0–5 scale mean the same thing to two different people.',
+      'Pick the axis you are rating — strategic fit, customer demand or deliverability — then a level. Hover a level to see exactly what it means — the written anchors are what make a 0–5 scale mean the same thing to two different people.',
       'Confidence is separate from the rating, and weights how much your view moves the aggregate. "4, but I am guessing" should count for less than "4, certain".',
       'The free-text reason is optional and is the most useful text in the system — it is what a curator reads when the team and the evidence disagree.',
       'Changing your mind supersedes your earlier rating rather than adding a second one. The earlier view is kept, because a changed mind is itself informative.',
-    ],
-  },
-
-  exploration_slot: {
-    title: 'Exploration slot',
-    ref: '§4.7.6',
-    body: [
-      'A small reserved slot showing topics the ranking did *not* put first, marked with a star.',
-      'A ranking system that learns from its own users confirms itself: highly ranked topics get opened more, which reads as evidence they deserve to rank highly. Reserving a slot for less-exposed topics — and deliberately sampling watchlist topics into it — is the standard remedy.',
-      'It respects your role\'s hard filters. It will not smuggle a topic with no proof point in front of a salesperson.',
     ],
   },
 
@@ -325,7 +302,7 @@ export const HELP: Record<string, HelpEntry> = {
     title: 'The opportunity brief',
     ref: 'FR-18',
     body: [
-      'A PDF a salesperson or presales engineer can take into a meeting: the opportunity, the sized market with its working, the solution drawn as a diagram, the named Orange assets, the competitive field, qualifying questions, objections and the next action per role — with every source listed at the back.',
+      'A PDF a salesperson or presales engineer can take into a meeting: the opportunity, the sized market with its working, the solution drawn as a diagram, the named Orange assets, the competitive field, qualifying questions, objections and the next action — with every source listed at the back.',
       'Three kinds of content meet on the page and are kept visibly distinct: **computed** (scores, sizes, intensity), **curated** (assets, references, competitors) and **written** (the narrative and the diagram). The last page records the weight set, sizing version, register version and the prompt and model that wrote the prose.',
       'The diagram is not drawn by the model. The model emits a structure — layers, boxes, who provides each one, what flows where — which the renderer draws to the same geometry every time. A box claiming to be an Orange asset that is not in the linked graph is demoted to third party, and the demotion is recorded.',
       'Regenerate after a refresh moves the topic: the brief carries the version it was built against, and says so when that is no longer current.',

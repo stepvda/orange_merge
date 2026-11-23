@@ -2,7 +2,7 @@
 
 A space is the hub of this schema. Thirteen tables point at it, and by the time
 anybody wants one gone it is carrying evidence attachments, two scored
-trajectories, curator-confirmed asset links, stage-gate history, per-role
+trajectories, curator-confirmed asset links, stage-gate history,
 assessments, a market estimate with its factors, a written description, a
 competitive read, a PDF on disk and possibly a place in a portfolio plan. A bare
 `DELETE` takes all of that silently — the foreign keys already cascade — which is
@@ -61,7 +61,7 @@ DEPENDENTS: tuple[tuple[str, str, str], ...] = (
     ("opportunity_signals", "opportunity_id", "evidence attachments"),
     ("scores", "opportunity_id", "stored scores"),
     ("opportunity_links", "opportunity_id", "asset links"),
-    ("assessments", "opportunity_id", "role assessments"),
+    ("assessments", "opportunity_id", "assessments"),
     ("workflow_transitions", "opportunity_id", "stage-gate moves"),
     ("workflow_state", "opportunity_id", "stage-gate position"),
     ("feedback", "opportunity_id", "feedback events"),

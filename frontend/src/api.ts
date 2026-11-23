@@ -155,11 +155,9 @@ export const api = {
 
   meta: () => get<Meta>('/meta'),
 
-  view: (role: string, filters: FilterState, limit?: number | null, sort?: string) =>
+  view: (filters: FilterState, sort?: string) =>
     get<RadarView>('/view', {
-      role,
-      limit: limit ? String(limit) : undefined,
-      sort: sort && sort !== 'rank' ? sort : undefined,
+      sort: sort || undefined,
       vertical: filters.vertical,
       domain: filters.domain,
       svp: filters.svp,
@@ -293,7 +291,7 @@ export const api = {
   generationOptions: () => get<GenerationOptions>('/generate/options'),
 
   /** What ALREADY exists inside the selected criteria. Not /view: that filters
-   *  by role first, and generation writes to the whole corpus. */
+   *  only the live states, and generation writes to the whole corpus. */
   generationMatching: (c: GenerationConstraints) =>
     get<GenerationMatch>('/generate/matching', {
       vertical: c.verticals,
@@ -367,7 +365,6 @@ export const api = {
    *  therefore stayed on screen for feedback the server had refused, and an
    *  expired session here never reached `setSessionEndedHandler`. */
   feedback: (payload: {
-    role: string
     kind: 'rating' | 'comparison' | 'override' | 'engagement'
     opportunity_id?: string
     other_opportunity_id?: string

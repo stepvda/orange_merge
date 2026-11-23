@@ -6,16 +6,6 @@ export interface VocabItem {
   definition: string
 }
 
-export interface RoleMode {
-  id: string
-  label: string
-  description: string
-  primary_action: string
-  link_types: string[]
-  acceptance?: string
-  ranking: Record<string, number>
-}
-
 export interface LinkTypeInfo {
   id: string
   meaning: string
@@ -50,9 +40,9 @@ export interface Meta {
   horizons: string[]
   states: string[]
   link_types: LinkTypeInfo[]
-  roles: RoleMode[]
   weight_set: string
   sorts?: { id: SortId; label: string }[]
+  default_sort?: SortId
   sizing_version?: string
   competitor_register_version?: string
   competition_levels?: { id: string; meaning: string }[]
@@ -121,7 +111,6 @@ export interface Signal {
 export interface WorkflowState {
   stage: string
   stage_label: string
-  owner_role: string | null
   owner: string | null
   entered_stage_at: string | null
   age_in_stage_days: number
@@ -137,15 +126,15 @@ export interface ConvictionAxis {
   n: number
   rater_spread: number
   contested: boolean
-  voices: { role: string; rating: number; confidence: number; rationale: string | null; author: string; at: string }[]
+  voices: { rating: number; confidence: number; rationale: string | null; author: string; at: string }[]
 }
 
 export interface Conviction {
   assessed: number
   axes: Record<string, ConvictionAxis>
   score: number | null
-  roles_responded: string[]
-  roles_missing: string[]
+  /** Axes nobody has rated yet. */
+  axes_missing: string[]
   sufficient: boolean
 }
 
@@ -429,7 +418,8 @@ export interface Topic {
   horizon: string | null
   horizon_basis: string | null
   why_hot: Claim[]
-  next_actions: Record<string, string>
+  /** The one recommended next action (FR-17). */
+  next_action: string | null
   attractiveness: ScoreBlock | null
   right_to_win: ScoreBlock | null
   portfolio_distance: number
@@ -458,24 +448,16 @@ export interface Topic {
   conviction?: Conviction | null
   divergence?: Divergence | null
   provenance: Record<string, string | null>
-  rank_score?: number
-  rank_explanation?: Record<string, { value: number; weight: number; contribution: number }>
-  exploration_slot?: boolean
-  strategist_flag?: string
 }
 
 export interface RadarView {
-  role: string
-  role_label: string
-  primary_action: string
   filters: Record<string, unknown>
   total_matching: number
-  /** Server-computed counts per filter value, over the whole role-eligible set. */
+  /** Server-computed counts per filter value, over every matching space. */
   facets: Record<string, Record<string, number>>
   sort: SortId
-  cap: number
+  /** Every matching space — no cap since roles were removed. */
   topics: Topic[]
-  exploration: Topic[]
   last_refresh: RefreshRow | null
   weight_set: string
 }
@@ -524,8 +506,8 @@ export const EMPTY_FILTERS: FilterState = {
   competition: [], has_brief: false, q: '',
 }
 
-/** Orderings the API offers beyond the role's own ranking function (FR-13). */
-export type SortId = 'rank' | 'market_size' | 'attractiveness' | 'right_to_win'
+/** Orderings the API offers. Attractiveness is the default. */
+export type SortId = 'attractiveness' | 'market_size' | 'right_to_win'
   | 'competition' | 'signals' | 'recent'
 
 /* -------------------------------------------------------------------------

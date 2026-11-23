@@ -474,8 +474,8 @@ export default function HowBuilt({ open, onClose, meta }: {
               <p className="hb-tech">
                 The answer is a distance, from <b>L0</b> — an existing product does this today —
                 through bundling and partnering, to <b>L4</b>, where nothing in the portfolio is
-                close. It decides which topics a salesperson is shown and which belong on a
-                strategist’s agenda. No language model runs in this step: it is a lookup, every entry
+                close. It tells you what kind of action fits a topic — sell it, package it, partner
+                for it, or study it. No language model runs in this step: it is a lookup, every entry
                 carries its source and its date, and a claimed connection nobody can explain is worse
                 than none — it will eventually be said out loud to a customer.
               </p>
@@ -536,9 +536,7 @@ export default function HowBuilt({ open, onClose, meta }: {
               <p>
                 Last, each topic is written up the way somebody actually needs it the morning before a
                 customer meeting: what this is, why it is happening now, which questions to ask, what
-                Orange would put on the table, and one concrete next step — a different one for a
-                strategist, a salesperson and a pre-sales engineer, because “interesting” is not an
-                action. Every name and number in that write-up was verified by an earlier stage; the
+                Orange would put on the table, and and one concrete next step, because “interesting” is not an action. Every name and number in that write-up was verified by an earlier stage; the
                 model is only allowed to arrange them into sentences.
               </p>
               <p className="hb-tech">

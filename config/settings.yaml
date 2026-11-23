@@ -133,19 +133,14 @@ enrichment:
 
 # ---- Collaboration workflow (FR-25, §4.10).
 workflow:
-  # Points of difference between an external score and the role whose job it is
-  # to know better, above which a review is triggered (§4.10 model C:
+  # Points of difference between an external score and the internal assessment
+  # axis that should know better, above which a review is triggered (§4.10 model C:
   # "divergence ... is surfaced as a review trigger").
   divergence_threshold: 30.0
   min_assessments_for_conviction: 1
   # §4.10's named weakness of the stage gate is latency — "a topic can die
-  # waiting for a stage owner". Past this, the topic is flagged as stalled.
+  # waiting". Past this, the topic is flagged as stalled.
   stale_in_stage_days: 30
-  # How much team conviction moves a topic in the per-role RANKING only.
-  # SC-14: internal data adjusts but does not replace external discovery, and
-  # SC-12 forbids folding it into a published score — so it never touches
-  # attractiveness or right-to-win.
-  conviction_ranking_weight: 0.25
 
 # ---- Competitive intensity (§4.3.3 "award notices reveal who is winning").
 competition:
@@ -190,10 +185,7 @@ description:
   max_parallel: 4
 
 # ---- Serving (FR-21, AC-05, NFR-09).
-serving:
-  max_topics_per_view: 24
-  # Randomised exploration slot to counter exposure bias (§4.7.6).
-  exploration_slot_size: 2
+serving: {}   # role modes, the per-view cap and the exploration slot were removed on 2026-11-23
 
 # ---- Ingestion guards (DR-08, NFR-07).
 ingestion:

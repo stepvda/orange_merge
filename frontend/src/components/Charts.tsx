@@ -245,7 +245,7 @@ export function DivergenceChart({ rows, onSelect }: {
     return (
       <p style={{ color: 'var(--text-muted)', fontSize: 12.5, margin: 0 }}>
         No topic yet shows a material gap between what the evidence says and what the team says.
-        Divergence appears here once roles have assessed enough topics — it is the review queue,
+        Divergence appears here once the team has assessed enough topics — it is the review queue,
         not an error state.
       </p>
     )

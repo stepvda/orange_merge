@@ -5,7 +5,7 @@
     radar refresh               run the pipeline (FR-19)
     radar replay --date ...     historical replay with leakage controls (FR-35)
     radar graph                 rebuild the Orange Business Graph (LK-01)
-    radar topics                list topics for a role (FR-13)
+    radar topics                list topics (FR-13)
     radar show OS001            topic detail with full decomposition (NFR-01)
     radar coverage              language / geography / tier coverage (NFR-08)
     radar whitespace            high attractiveness, no portfolio path (FR-32)
@@ -81,16 +81,15 @@ def main(argv: list[str] | None = None) -> int:
     replay.add_argument("--max-clusters", type=int, default=None)
     replay.add_argument("--provider", default=None)
 
-    topics = sub.add_parser("topics", help="List topics ranked for a role")
-    topics.add_argument("--role", default="strategist")
+    topics = sub.add_parser("topics", help="List topics")
     topics.add_argument("--vertical", default=None)
     topics.add_argument("--domain", default=None)
     topics.add_argument("--horizon", default=None)
     topics.add_argument("--competition", default=None,
                         help="Comma-separated levels: none,low,medium,high (§4.3.3)")
-    topics.add_argument("--sort", default="rank",
-                        help="rank (the role's own ranking) | market_size | attractiveness | "
-                             "right_to_win | competition | signals | recent")
+    topics.add_argument("--sort", default="attractiveness",
+                        help="attractiveness | market_size | right_to_win | competition | "
+                             "signals | recent")
     topics.add_argument("--limit", type=int, default=None)
     topics.add_argument("--json", action="store_true")
 
@@ -542,14 +541,13 @@ def main(argv: list[str] | None = None) -> int:
                            ("horizon", args.horizon), ("competition", args.competition)):
             if value:
                 filters[key] = [v.strip() for v in value.split(",")]
-        view = read.view(args.role, filters, args.limit, sort=args.sort)
+        view = read.view(filters, args.limit, sort=args.sort)
         if args.json:
             print(json.dumps(view, indent=2, default=str))
             return 0
         from .readmodel import SORTS as _SORTS
-        print(f"\n{view['role_label']} — {view['total_matching']} matching, showing {len(view['topics'])} "
-              f"(cap {view['cap']}, weight set {view['weight_set']}, "
-              f"order: {_SORTS[view.get('sort', 'rank')].lower()})")
+        print(f"\n{view['total_matching']} matching, showing {len(view['topics'])} "
+              f"(weight set {view['weight_set']}, order: {_SORTS[view['sort']].lower()})")
         if view["last_refresh"]:
             print(f"Last refresh: {view['last_refresh'].get('finished_at') or view['last_refresh']['started_at']}")
         print()
@@ -566,13 +564,9 @@ def main(argv: list[str] | None = None) -> int:
             print(f"    {topic['statement']}")
             print(f"    {topic['labels']['vertical']} x {topic['labels']['use_case']} x "
                   f"{topic['labels']['technology']}  ({topic['signal_count']} signals)")
-            action = topic["next_actions"].get(args.role)
-            if action:
-                print(f"    -> {action}")
+            if topic.get("next_action"):
+                print(f"    -> {topic['next_action']}")
             print()
-        for topic in view["exploration"]:
-            print(f" *  {topic['id']}  [exploration slot — countering exposure bias, §4.7.6]")
-            print(f"    {topic['statement']}\n")
         return 0
 
     if args.command == "show":
@@ -744,9 +738,8 @@ def _print_topic(topic: dict) -> None:
         print(f"  [{link['link_type']}] {link['label']:42} conf={link['confidence']:.2f}{curator}")
         print(f"        {link['evidence'].get('rule', '')}")
 
-    print("\nNEXT ACTIONS (FR-17):")
-    for role, action in topic["next_actions"].items():
-        print(f"  {role:11}: {action}")
+    print("\nNEXT ACTION (FR-17):")
+    print(f"  {topic.get('next_action') or '(none yet)'}")
 
     if topic.get("signals"):
         print(f"\nSOURCES ({len(topic['signals'])}) — NFR-02 lineage:")

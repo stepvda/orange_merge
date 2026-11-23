@@ -1,14 +1,13 @@
 """Next-action generation (FR-17, AC-03).
 
 AC-03 Actionability: "Every topic has a clear next step: idea, deep-dive, or
-customer talking point", tested by "every topic in every role mode renders a
-non-empty, role-appropriate next action".
+customer talking point". Every topic gets one non-empty next action (one per
+role until roles were removed on 2026-11-23).
 
 §4.9 sets the bar: "when I open a topic I don't just want to read about it, I
 want to act on it."
 
-Table 23 assigns this to the model as "short, templated generation with a
-role-specific system prompt" — but the NAMED ASSETS handed to the prompt come
+Table 23 assigns this to the model as "short, templated generation" — but the NAMED ASSETS handed to the prompt come
 from the graph, never from the model. That is the difference between "Orange has
 relevant assets" (unverifiable) and "lead with Live Objects and the Saint-Gobain
 Glass reference" (inspectable, and wrong in a way someone can correct).
@@ -35,14 +34,14 @@ class NextActionGenerator:
 
     def run(self, states: tuple[str, ...] = ("active", "watchlist", "fading"),
             topic_ids: list[str] | None = None) -> dict[str, Any]:
-        """Generate a next action per role, for every live topic or just `topic_ids`.
+        """Generate the next action for every live topic or just `topic_ids`.
 
         The subset form is what a targeted generation run uses: this stage is one
         model call per topic, so re-running it across the whole radar to serve
         five new spaces is the single most expensive thing such a run could do.
         The subset ignores `states` deliberately — a freshly synthesised space is
         `candidate` until scoring promotes it, and AC-03 asks for an action on
-        every topic a role can open, not only the promoted ones.
+        every topic anyone can open, not only the promoted ones.
         """
         if topic_ids:
             placeholders = ",".join("?" * len(topic_ids))
@@ -67,9 +66,10 @@ class NextActionGenerator:
                     self._describe(dict(topic), assets),
                     temperature=0.4, max_tokens=600,
                 )
-                actions = {role: str(payload.get(role, "")).strip() for role in self.cfg.role_ids}
-                if not all(actions.values()):
-                    raise ValueError("model returned an empty action for at least one role")
+                action = str(payload.get("next_action", "")).strip()
+                if not action:
+                    raise ValueError("model returned an empty next action")
+                actions = {"next": action}
 
                 # Validate the model's own declaration of what it named against
                 # the assets actually supplied. §4.4.4's evidence-binding rule
@@ -85,9 +85,9 @@ class NextActionGenerator:
                     )
                     raise ValueError(f"named unsupplied entities: {unverified}")
             except Exception as exc:  # noqa: BLE001
-                # AC-03 requires a non-empty action for EVERY topic in EVERY
-                # role mode, so a model failure falls back to a deterministic
-                # template rather than leaving the field blank.
+                # AC-03 requires a non-empty action for EVERY topic, so a model
+                # failure falls back to a deterministic template rather than
+                # leaving the field blank.
                 log.warning("Next-action generation failed for %s (%s) — using template", topic["id"], exc)
                 actions = self._fallback(dict(topic), assets)
                 fallbacks += 1
@@ -172,7 +172,7 @@ WHY IT IS HOT (each claim is evidence-bound):
 NAMED ORANGE ASSETS LINKED TO THIS TOPIC — use only these, verbatim:
 {asset_lines}
 
-Write the next action for each of the three roles. Return JSON."""
+Write the single next action. Return JSON."""
 
     def _fallback(self, topic: dict[str, Any], assets: dict[str, list[str]]) -> dict[str, str]:
         use_case = self.cfg.use_cases.label(topic["use_case"])
@@ -182,19 +182,11 @@ Write the next action for each of the three roles. Return JSON."""
         references = assets.get("reference", [])
         partners = assets.get("partner", [])
         return {
-            "strategist": (
-                f"Commission a deep-dive on {use_case} in {vertical} using {technology}: size the "
-                f"opportunity bottom-up and decide whether to prototype next quarter."
-            ),
-            "sales": (
-                f"Open with {vertical} accounts on {use_case}"
-                + (f", leading with {offers[0]}" if offers else "")
-                + (f" and the {references[0]} reference." if references else
-                   " — confirm an internal proof point before the meeting.")
-            ),
-            "presales": (
-                f"Assemble a bid angle on {use_case} with {technology}"
-                + (f", combining {', '.join(o for o in offers[:2])}" if offers else "")
-                + (f" and {partners[0]}." if partners else ".")
+            "next": (
+                f"Validate demand for {use_case} in {vertical} using {technology}"
+                + (f": lead with {offers[0]}" if offers else "")
+                + (f" and the {references[0]} reference" if references else
+                   ", and confirm an internal proof point first")
+                + (f", with {partners[0]} as delivery partner." if partners else ".")
             ),
         }

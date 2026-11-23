@@ -11,7 +11,7 @@ import { EMPTY_FILTERS } from '../types'
  * those too. A fact the radar computes and displays but cannot filter on is a
  * fact a strategist has to eyeball across 148 rows.
  *
- * Counts come from the SERVER, over every topic the role can see, not from the
+ * Counts come from the SERVER, over every matching topic, not from the
  * capped page: a rail that showed "CISO 0" because none of the 24 visible rows
  * carried that persona — while 37 matched — trained people not to trust it.
  */
@@ -26,7 +26,7 @@ interface Props {
   geographies: string[]
   /** Only the clusters present in the current result set, in vocabulary order. */
   marketClusters: MarketCluster[]
-  /** Server-computed facet counts for the current role and result set. */
+  /** Server-computed facet counts for the current result set. */
   facets: Record<string, Record<string, number>>
   totalMatching: number
 }
@@ -147,7 +147,7 @@ export default function Filters({ meta, filters, onChange, geographies, marketCl
       </div>
 
       <div className="filter-summary" aria-live="polite">
-        {loading ? 'Counting…' : `${totalMatching} space${totalMatching === 1 ? '' : 's'} match this role and filter`}
+        {loading ? 'Counting…' : `${totalMatching} space${totalMatching === 1 ? '' : 's'} match the filters`}
       </div>
 
       {active > 0 && (

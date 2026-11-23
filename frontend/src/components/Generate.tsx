@@ -739,7 +739,7 @@ export default function GenerateScreen({ meta, onClose, onOpenTopic, onGenerated
                   + 'already covered before adding to it.'
                 : 'These already meet the criteria you selected. A run that lands on one of their '
                   + 'taxonomy triples refreshes it rather than creating a new space.'}
-            {' '}Counted across the whole corpus, not through a role filter — generation writes to
+            {' '}Counted across the whole corpus, including candidate and dormant spaces — generation writes to
             all of it.
           </p>
 

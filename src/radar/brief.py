@@ -783,20 +783,11 @@ class BriefBuilder:
             story.append(Paragraph(titles.get("risks_and_unknowns", "Risks and unknowns"), style["h2"]))
             story.append(Paragraph(_text(sections["risks_and_unknowns"]["text"]), style["body"]))
 
-        actions = topic.get("next_actions") or {}
-        if not actions:
+        action = topic.get("next_action")
+        if not action:
             return story
-        story.append(Paragraph("Next action, by role (FR-17)", style["h2"]))
-        rows = [[Paragraph(h, style["cellhead"]) for h in ("Role", "Do this next")]]
-        for role_id, action in actions.items():
-            role = next((r for r in self.cfg.role_modes_raw["modes"] if r["id"] == role_id), None)
-            rows.append([
-                Paragraph(_text((role or {}).get("label", role_id)), style["cell"]),
-                Paragraph(_text(action), style["cell"]),
-            ])
-        table = Table(rows, colWidths=[26 * mm, 140 * mm], hAlign="LEFT")
-        table.setStyle(_table_style())
-        story.append(table)
+        story.append(Paragraph("Next action (FR-17)", style["h2"]))
+        story.append(Paragraph(_text(action), style["body"]))
         return story
 
     def _evidence_appendix(self, topic: dict[str, Any]) -> list[Any]:

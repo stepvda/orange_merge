@@ -107,7 +107,7 @@ export const IconGauge = svg(<>
   <path d="M4 17.5a8.5 8.5 0 1 1 16 0" /><path d="m12 17.5 4-5" /><circle cx="12" cy="17.5" r="1.1" />
 </>)
 
-/** Next action, by role. */
+/** Next action. */
 export const IconTarget = svg(<>
   <circle cx="12" cy="12" r="8.5" /><circle cx="12" cy="12" r="4" /><circle cx="12" cy="12" r="0.6" />
 </>)

@@ -19,7 +19,7 @@ from ..config import Config
 PROMPT_VERSION_SYNTHESIS = "synth-v1"
 PROMPT_VERSION_CRITIC = "critic-v1"
 PROMPT_VERSION_RELEVANCE_RUBRIC = "strategic-relevance-v1"
-PROMPT_VERSION_NEXT_ACTION = "next-action-v1"
+PROMPT_VERSION_NEXT_ACTION = "next-action-v2"
 PROMPT_VERSION_ENTAILMENT = "entail-v1"
 PROMPT_VERSION_DESCRIPTION = "describe-v1"
 
@@ -358,20 +358,17 @@ Return JSON:
 
 
 def next_action_prompt(cfg: Config) -> str:
-    """Role-specific next action (FR-17, AC-03, Table 23)."""
-    modes = "\n".join(
-        f"  - {m['id']} ({m['label']}): {m['description']} Primary action: {m['primary_action']}."
-        for m in cfg.role_modes_raw["modes"]
-    )
-    return f"""You write the single next action a named role should take on an opportunity space.
+    """The single recommended next action on an opportunity space (FR-17).
 
-ROLES
-{modes}
+    One action, not one per role: the app has no role modes since 2026-11-23.
+    """
+    return f"""You write the single most useful next action Orange Business should take on an
+opportunity space.
 
 Rules:
-  - One sentence per role. Imperative. Concrete.
-  - Ground it in the named Orange assets supplied to you. If none are supplied
-    for a role, say what to find out, not what to claim.
+  - One or two sentences. Imperative. Concrete.
+  - Ground it in the named Orange assets supplied to you. If none are supplied,
+    say what to find out, not what to claim.
   - Never invent a number, an offer name or a partner tier.
   - NEVER NAME A CUSTOMER OR PROSPECT ORGANISATION that is not in the supplied
     asset list. Naming a plausible-sounding account is the most damaging failure
@@ -383,11 +380,11 @@ Rules:
       GOOD: "Reach out to Saint-Gobain Glass…"  (only if supplied as a reference)
   - Refer to unnamed prospects by ROLE AND SEGMENT instead: "a European airport
     operator", "a tier-1 automotive supplier".
-  - The sales action must be something a person could actually say out loud in a
-    customer meeting.
+  - If the action involves a customer conversation, it must be something a person
+    could actually say out loud in a customer meeting.
 
 Return JSON:
-{{"strategist": "...", "sales": "...", "presales": "...",
+{{"next_action": "...",
   "assets_named": ["<each Orange asset or customer organisation you named, verbatim>"]}}
 
 `assets_named` is validated against the supplied list. Listing something that

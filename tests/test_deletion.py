@@ -145,7 +145,7 @@ def test_the_impact_names_what_goes_and_counts_it(db):
     labels = {entry["label"]: entry["count"] for entry in impact["removes"]}
     assert labels["evidence attachments"] == 2
     assert labels["asset links"] == 1
-    assert labels["role assessments"] == 1
+    assert labels["assessments"] == 1
     assert labels["stage-gate moves"] == 1
     assert labels["feedback events"] == 1
     assert labels["market-size estimates"] == 1

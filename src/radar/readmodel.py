@@ -1,18 +1,14 @@
 """Pipeline stage 7: Serve (Table 16).
 
-Scored topics -> radar, briefs, API. Read model, role-specific ranking,
-filtering, export, feedback capture.
+Scored topics -> radar, briefs, API. Read model, filtering, sorting, export,
+feedback capture.
 
-The central design point is §4.5.3: the three role modes are not arbitrary
-interface presets. They fall out of portfolio distance — sales sees L0 and L1,
-presales L0 to L2, strategy L2 to L4 with the highest attractiveness. "A
-high-attractiveness topic at L4 is precisely the innovation agenda the
-strategist is looking for, and precisely the thing a salesperson should never be
-shown."
+Role modes (strategist / sales / presales, each with its own ranking, eligibility
+filter and cap) were removed on 2026-11-23: every view shows every live
+opportunity space, ordered by attractiveness unless another sort is asked for.
 
 SC-12 is enforced structurally: attractiveness and right_to_win travel as
-separate fields and are never combined into a displayed number. `rank_score`
-exists only to order a list and is deliberately not surfaced as a score.
+separate fields and are never combined into a displayed number.
 """
 
 from __future__ import annotations
@@ -84,8 +80,8 @@ class ReadModel:
         assessments (twice, before `divergence_for` learned to take a
         conviction), its signal count and whether it has a description and a
         brief. Per topic that is nothing. Across a 167-topic view it was 1,670
-        round trips and 1.6 seconds of dead air on every filter change, role
-        switch and tab change — the single slowest thing in the interface, and
+        round trips and 1.6 seconds of dead air on every filter change
+        and tab change — the single slowest thing in the interface, and
         invisible in any profile of the frontend.
 
         The read model is a read model, so the fix is the obvious one: fetch each
@@ -321,7 +317,7 @@ class ReadModel:
             "horizon": topic["horizon"],
             "horizon_basis": topic["horizon_basis"],
             "why_hot": unjs(topic["why_hot"], []),            # FR-14, every claim cited
-            "next_actions": unjs(topic["next_actions"], {}),  # FR-17
+            "next_action": next_action(unjs(topic["next_actions"], {})),  # FR-17
             "attractiveness": latest.get("attractiveness"),
             "right_to_win": latest.get("right_to_win"),
             "portfolio_distance": distance,                    # FR-30
@@ -415,193 +411,33 @@ class ReadModel:
         )
         return {r["id"]: r["label"] for r in rows}
 
-    # -- role-specific ranking (FR-13, FR-22, FR-31) ------------------------
+    # -- the view (FR-21, AC-04) -------------------------------------------
 
-    def rank(self, topics: list[dict[str, Any]], role: str,
-             apply_role_filter: bool = True) -> list[dict[str, Any]]:
-        """Each role has a DISTINCT default ranking function (FR-13, §3.2).
-
-        §3.2: "The same topic can be excellent for a strategist (large, early, no
-        proof points yet) and useless for a salesperson (nothing to show a
-        customer). The system must express this as different default ranking
-        functions per role mode, not as a single score with different filters."
-        """
-        mode = self.cfg.role_mode(role)
-        weights = mode["ranking"]
-        allowed = set(mode.get("link_types", []))
-        require_ref = mode.get("default_filters", {}).get("require_reference_in_vertical", False)
-
-        if not apply_role_filter:
-            # Ordering without gatekeeping. The workflow board needs this: a
-            # stage owner must see every topic sitting in their column, even one
-            # their role mode would not normally surface. Hiding a topic from
-            # the person accountable for advancing it would break the stage gate
-            # (§4.10 model A) in the name of enforcing a discovery filter.
-            allowed = set()
-            require_ref = False
-
-        eligible = []
-        for topic in topics:
-            # FR-31: role-mode filtering is DRIVEN by portfolio distance, so it
-            # matches on delivery link types only. A certification alone must
-            # not put a topic in front of a salesperson.
-            delivery_types = {t for t in topic["link_types"] if t in LINK_DISTANCE}
-            if allowed and not (delivery_types & allowed):
-                continue
-            if require_ref:
-                # §4.5.3 gives the sales acceptance criterion a computable
-                # definition: L0 or L1, with at least one published reference in
-                # the vertical. Without this the persona's own acceptance
-                # criterion — "only topics with enough internal content to
-                # credibly back up" — cannot be met.
-                has_reference = any(l["node_type"] == "reference" for l in topic["links"])
-                if not has_reference or topic["evidence_gap_warning"]:
-                    continue
-            eligible.append(topic)
-
-        for topic in eligible:
-            attractiveness = (topic.get("attractiveness") or {}).get("score", 0.0)
-            components = (topic.get("attractiveness") or {}).get("components", {}) or {}
-            rtw = (topic.get("right_to_win") or {}).get("score", 0.0)
-            rtw_components = (topic.get("right_to_win") or {}).get("components", {}) or {}
-
-            proof_density = (
-                rtw_components.get("reference_density", 0.0) * 0.6
-                + rtw_components.get("external_validation", 0.0) * 0.4
-            )
-            # Presales differentiation: Orange has assets AND the market has few
-            # credible providers. Partner-tier strength and analyst recognition
-            # stand in for "few credible providers" until a competitor feed exists.
-            differentiation = (
-                rtw_components.get("technology_ownership", 0.0) * 0.35
-                + rtw_components.get("external_validation", 0.0) * 0.35
-                + rtw_components.get("compliance_fit", 0.0) * 0.30
-            )
-            conviction_block = topic.get("conviction") or {}
-            conviction_score = conviction_block.get("score")
-            axes = conviction_block.get("axes") or {}
-            # Each role leans on the axis it is accountable for, and falls back
-            # to the blended conviction when its own axis has no rating yet.
-            role_axis = {"strategist": "strategic_fit", "sales": "customer_demand",
-                         "presales": "deliverability"}.get(role)
-            own_axis = (axes.get(role_axis) or {}).get("score") if role_axis else None
-            conviction_term = own_axis if own_axis is not None else conviction_score
-
-            terms = {
-                "attractiveness": attractiveness,
-                "right_to_win": rtw,
-                "novelty_momentum": components.get("novelty_momentum", 0.0),
-                "proof_point_density": proof_density,
-                "differentiation": differentiation,
-                # Normalised so a further-away topic scores 100 on this term;
-                # the sign in role_modes.yaml decides whether that helps or hurts.
-                "portfolio_distance": 100.0 * topic["portfolio_distance"] / 4.0,
-                # Absent conviction is NOT zero — an unrated topic would be
-                # pushed to the bottom purely for being unrated, which is a
-                # popularity bias, not a judgement. Unrated topics sit neutral.
-                "conviction": conviction_term if conviction_term is not None else 50.0,
-            }
-            effective = dict(weights)
-            if conviction_term is not None:
-                effective["conviction"] = float(
-                    self.cfg.settings.get("workflow", {}).get("conviction_ranking_weight", 0.0)
-                )
-            topic["rank_score"] = round(sum(terms.get(k, 0.0) * w for k, w in effective.items()), 3)
-            topic["rank_explanation"] = {
-                k: {"value": round(terms.get(k, 0.0), 2), "weight": w,
-                    "contribution": round(terms.get(k, 0.0) * w, 2)}
-                for k, w in effective.items()
-            }
-            if mode.get("low_rtw_is_penalty") is False and rtw < 40:
-                topic["strategist_flag"] = "low right-to-win — flagged, not penalised"
-
-        eligible.sort(key=lambda t: t.get("rank_score", 0.0), reverse=True)
-        return eligible
-
-    def view(self, role: str, filters: dict[str, Any] | None = None,
-             limit: int | None = None, explore: bool = True,
+    def view(self, filters: dict[str, Any] | None = None, limit: int | None = None,
              sort: str | None = None) -> dict[str, Any]:
-        """A capped, filtered, role-ranked view (FR-21, FR-22, AC-04, AC-05).
+        """Every live opportunity space matching the filters, sorted.
 
-        `sort` re-orders what the role ranking has already selected; it never
-        replaces it. FR-13 makes the per-role ranking function the default
-        contract, and the role filter still decides what is eligible — a
-        salesperson sorting by market size still sees only topics with a proof
-        point behind them (§4.5.3).
+        No role, no eligibility filter and no cap: since 2026-11-23 the radar
+        and the list always show all spaces. `limit` remains for API callers
+        (the CLI) that want only the head of the list.
         """
         filters = filters or {}
-        cap = limit or int(self.cfg.settings["serving"]["max_topics_per_view"])
-        topics = self.topics()
-        filtered = [t for t in topics if _matches(t, filters)]
-        ranked = self.rank(filtered, role)
-        if sort and sort != "rank":
-            ranked = _sorted(ranked, sort)
-
-        # Facet counts over everything the ROLE can see, not over the capped
-        # head. The rail was counting the 24 topics on screen, so "CISO: 0" meant
-        # "none in this page" while 26 matched — a filter that appears to lead
-        # nowhere is a filter nobody clicks. Counted before the cap and after the
-        # role filter, because a count that promises topics the role may not see
-        # (§4.5.3) would be a different lie.
-        facets = _facets(ranked)
-
-        head = ranked[:cap]
-        exploration: list[dict[str, Any]] = []
-        if explore:
-            # §4.7.6 exposure-bias remedy: reserve a small randomised slot in
-            # every view for topics the model did not rank first, and
-            # deliberately sample Watchlist topics into it (the selection-bias
-            # remedy, since Watchlist topics otherwise never accumulate labels).
-            #
-            # The pool is drawn from ROLE-ELIGIBLE topics only. The bias being
-            # corrected is a RANKING bias, not the role's eligibility filter:
-            # §4.5.3 is explicit that a topic with no proof point is "precisely
-            # the thing a salesperson should never be shown", and an exploration
-            # slot that smuggled one past the filter would break the sales
-            # persona's own acceptance criterion in the name of fixing a
-            # different problem.
-            #
-            # Selection is seeded so the same view is reproducible (SC-11) while
-            # still rotating across days.
-            slot = int(self.cfg.settings["serving"]["exploration_slot_size"])
-            head_ids = {t["id"] for t in head}
-            tail = ranked[cap:]
-            watchlist = [t for t in ranked if t["state"] == "watchlist" and t["id"] not in head_ids]
-            pool = watchlist + [t for t in tail if t["id"] not in {w["id"] for w in watchlist}]
-            if pool and slot:
-                seed = f"{role}|{sorted(filters.items())}|{dt.date.today().isoformat()}"
-                digest = int(hashlib.sha256(seed.encode()).hexdigest(), 16)
-                # Compared by id. The membership test used to be `chosen not in
-                # exploration`, against a list holding COPIES that carry an extra
-                # `exploration_slot` key — so it never matched and the guard it
-                # looks like was doing nothing. Two offsets can land on the same
-                # index whenever the stride and the pool size share a factor, and
-                # the same topic would then be shown twice in one slot.
-                picked: set[str] = set()
-                for offset in range(min(slot, len(pool))):
-                    chosen = pool[(digest + offset * 7919) % len(pool)]
-                    if chosen["id"] in picked:
-                        continue
-                    picked.add(chosen["id"])
-                    chosen = dict(chosen)
-                    chosen["exploration_slot"] = True
-                    exploration.append(chosen)
+        sort = sort if sort in SORTS else DEFAULT_SORT
+        filtered = [t for t in self.topics() if _matches(t, filters)]
+        ordered = _sorted(filtered, sort)
+        facets = _facets(ordered)
+        head = ordered[: int(limit)] if limit else ordered
 
         last_refresh = self.db.query_one(
             "SELECT finished_at, started_at, reference_date FROM refreshes "
             f"WHERE {NOT_A_GENERATION} ORDER BY started_at DESC LIMIT 1"
         )
         return {
-            "role": role,
-            "sort": sort or "rank",
-            "role_label": self.cfg.role_mode(role)["label"],
-            "primary_action": self.cfg.role_mode(role)["primary_action"],
+            "sort": sort,
             "filters": filters,
-            "total_matching": len(ranked),
+            "total_matching": len(ordered),
             "facets": facets,
-            "cap": cap,
             "topics": [_for_list(t) for t in head],
-            "exploration": [_for_list(t) for t in exploration],
             "last_refresh": dict(last_refresh) if last_refresh else None,   # AC-02, FR-19
             "weight_set": self.cfg.weight_set,
         }
@@ -783,30 +619,48 @@ class ReadModel:
 
 #: Fields a topic carries that only the DETAIL view renders. They are computed
 #: for ranking and filtering and then dropped before the response: every claim
-#: with its citations, every asset link, the per-role next actions and the rank
-#: arithmetic came to about a megabyte per view, for content no list row shows.
-#: Opening a topic fetches them from /api/topics/{id}, which is where they are
-#: read (§4.9 puts the decomposition on the topic page, not in the list).
-#: `next_actions` deliberately stays: AC-03 requires that "every topic in every
-#: role mode renders a non-empty, role-appropriate next action", and the CLI's
-#: topic list prints it. It is three sentences on the topics actually shown, not
-#: on every topic matched.
+#: with its citations and every asset link came to about a megabyte per view,
+#: for content no list row shows. Opening a topic fetches them from
+#: /api/topics/{id}, which is where they are read (§4.9 puts the decomposition
+#: on the topic page, not in the list). `next_action` stays: the CLI's topic
+#: list prints it.
 _DETAIL_ONLY_FIELDS = ("links", "why_hot", "reference_density",
-                       "rank_explanation", "provenance", "state_reason", "horizon_basis")
+                       "provenance", "state_reason", "horizon_basis")
 
 
-#: Orderings a user can ask for, beyond the role's own ranking function.
+#: Orderings a user can ask for. Attractiveness is the default.
 SORTS = {
-    "rank": "Ranked for this role",
-    "market_size": "Largest serviceable market",
     "attractiveness": "Highest attractiveness",
+    "market_size": "Largest serviceable market",
     "right_to_win": "Strongest right to win",
     "competition": "Least contested first",
     "signals": "Most evidence",
     "recent": "Most recently refreshed",
 }
 
+DEFAULT_SORT = "attractiveness"
+
 _COMPETITION_ORDER = {"none": 0, "low": 1, "medium": 2, "high": 3}
+
+
+#: Keys of the pre-2026-11-23 per-role next actions, in the order an old
+#: record is read when it has no single `next` action yet.
+_LEGACY_ACTION_KEYS = ("strategist", "presales", "sales")
+
+
+def next_action(actions: dict[str, Any] | None) -> str | None:
+    """The one next action for a topic.
+
+    New records hold {"next": text}. Records written before roles were removed
+    hold one action per role; the first of those stands in until the next
+    generation run rewrites it.
+    """
+    actions = actions or {}
+    for key in ("next",) + _LEGACY_ACTION_KEYS:
+        text = str(actions.get(key) or "").strip()
+        if text:
+            return text
+    return None
 
 
 def _warm_svps(statements) -> None:
@@ -877,7 +731,8 @@ def _sorted(topics: list[dict[str, Any]], sort: str) -> list[dict[str, Any]]:
             return (False, -topic.get("signal_count", 0))
         if sort == "recent":
             return (False, topic.get("last_refresh") or "")
-        return (False, -topic.get("rank_score", 0.0))
+        score = (topic.get("attractiveness") or {}).get("score")
+        return (score is None, -(score or 0.0))
 
     reverse = sort == "recent"
     return sorted(topics, key=key, reverse=reverse)
@@ -981,3 +836,4 @@ def refresh_kind(refresh_id: str | None) -> str:
 matches_filters = _matches
 topic_for_list = _for_list
 facet_counts = _facets
+sort_topics = _sorted

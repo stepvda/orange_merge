@@ -23,14 +23,13 @@ import SvpBadge from './SvpBadge'
  *   can we play and can we win, itemised against named Orange assets;
  *   proof points;
  *   the score breakdown, expanded rather than hidden behind a tooltip;
- *   the recommended next action for the current role.
+ *   the recommended next action.
  */
 
 interface Props {
   topicId: string | null
   /** Set when the brief tab is open, so the pane can offer to jump to it. */
   onOpenBrief?: (topicId: string) => void
-  role: string
   meta: Meta
   rank?: number
   workflowMeta?: WorkflowMeta | null
@@ -108,7 +107,7 @@ const SECTIONS: { id: string; label: string }[] = [
   { id: 'sources', label: 'Sources' },
 ]
 
-export default function TopicDetail({ topicId, role, meta, rank, workflowMeta, onChanged, refreshKey, onHelp, onExplain, onOpenBrief, onDeleted }: Props) {
+export default function TopicDetail({ topicId, meta, rank, workflowMeta, onChanged, refreshKey, onHelp, onExplain, onOpenBrief, onDeleted }: Props) {
   const [topic, setTopic] = useState<Topic | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [rated, setRated] = useState<string | null>(null)
@@ -185,14 +184,12 @@ export default function TopicDetail({ topicId, role, meta, rank, workflowMeta, o
     // DR-15: exposure context travels with the event so engagement can be
     // inverse-propensity weighted against exposure bias (§4.7.6).
     api.feedback({
-      role,
       kind: 'rating',
       opportunity_id: topic.id,
       verdict,
       exposure_context: {
         view: 'topic_detail',
         rank_shown: rank ?? null,
-        exploration_slot: Boolean(topic.exploration_slot),
         weight_set: topic.attractiveness?.weight_set ?? null,
       },
     }).catch(() => setRated(null))
@@ -210,7 +207,6 @@ export default function TopicDetail({ topicId, role, meta, rank, workflowMeta, o
           L{topic.portfolio_distance}
         </span>
         {onHelp && <HelpButton topic="portfolio_distance" onOpen={onHelp} />}
-        {topic.exploration_slot && <span className="badge explore">exploration</span>}
       </div>
 
       <p className="detail-statement">{topic.statement}</p>
@@ -265,12 +261,10 @@ export default function TopicDetail({ topicId, role, meta, rank, workflowMeta, o
         </div>
       </dl>
 
-      {topic.next_actions[role] && (
+      {topic.next_action && (
         <div className="action-card action-lead">
-          <div className="action-role">
-            Do this next — {meta.roles.find((r) => r.id === role)?.label ?? role}
-          </div>
-          {topic.next_actions[role]}
+          <div className="action-role">Do this next</div>
+          {topic.next_action}
         </div>
       )}
 
@@ -506,21 +500,12 @@ export default function TopicDetail({ topicId, role, meta, rank, workflowMeta, o
         </div>
       </div>
 
-      {/* --- next action for the current role (FR-17, AC-03) --- */}
+      {/* --- next action (FR-17, AC-03) --- */}
       <div className="detail-section" id="section-action">
-        <h4><IconTarget />Next action, by role</h4>
-        {!topic.next_actions[role] && (
-          <div style={{ color: 'var(--text-muted)' }}>No action generated for this role yet.</div>
-        )}
-        {Object.entries(topic.next_actions).map(([roleId, action]) => (
-          <div className={`action-card${roleId === role ? ' own' : ''}`} key={roleId}>
-            <div className="action-role">
-              {meta.roles.find((r) => r.id === roleId)?.label ?? roleId}
-              {roleId === role && ' · yours, repeated from the top'}
-            </div>
-            {action}
-          </div>
-        ))}
+        <h4><IconTarget />Next action</h4>
+        {topic.next_action
+          ? <div className="action-card own">{topic.next_action}</div>
+          : <div style={{ color: 'var(--text-muted)' }}>No next action generated yet.</div>}
       </div>
 
       {/* --- collaboration workflow (FR-25, §4.10) --- */}
@@ -528,14 +513,14 @@ export default function TopicDetail({ topicId, role, meta, rank, workflowMeta, o
         <>
           <div className="detail-section" id="section-workflow">
             <h4><IconBoard />Workflow{onHelp && <HelpButton topic="workflow" onOpen={onHelp} />}</h4>
-            <StageControl topic={topic} role={role} meta={workflowMeta} onMoved={reload} />
+            <StageControl topic={topic} meta={workflowMeta} onMoved={reload} />
           </div>
 
           <div className="detail-section">
             <h4><IconVoices />Team conviction{onHelp && <HelpButton topic="conviction" onOpen={onHelp} />}</h4>
             <ConvictionPanel topic={topic} />
             <div style={{ marginTop: 10 }}>
-              <AssessmentWidget topic={topic} role={role} meta={workflowMeta} onSubmitted={reload} onHelp={onHelp} />
+              <AssessmentWidget topic={topic} meta={workflowMeta} onSubmitted={reload} onHelp={onHelp} />
             </div>
           </div>
         </>

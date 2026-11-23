@@ -100,7 +100,7 @@ STAGE_LABELS: tuple[tuple[str, str], ...] = (
     ("enrich", "Attaching corroborating evidence"),
     ("link", "Linking to the Orange Business Graph"),
     ("score", "Scoring attractiveness and right to win"),
-    ("actions", "Writing the next action per role"),
+    ("actions", "Writing the next action"),
     ("size", "Sizing the market"),
     ("competition", "Reading the competitive field"),
 )

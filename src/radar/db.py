@@ -135,7 +135,7 @@ CREATE TABLE IF NOT EXISTS opportunity_spaces (
     horizon_basis   TEXT,                      -- which derivation test was applied
     horizon_anchor_date TEXT,
     why_hot         TEXT NOT NULL DEFAULT '[]',-- JSON [{claim, signals:[SIG-...]}] — every claim cited (FR-14)
-    next_actions    TEXT NOT NULL DEFAULT '{}',-- JSON {role: text} (FR-17)
+    next_actions    TEXT NOT NULL DEFAULT '{}',-- JSON {"next": text} (FR-17); pre-2026-11-23 rows {role: text}
     critic_score    INTEGER,
     critic_notes    TEXT,
     first_seen      TEXT NOT NULL,
@@ -325,7 +325,7 @@ CREATE INDEX IF NOT EXISTS idx_transitions_topic ON workflow_transitions(opportu
 CREATE TABLE IF NOT EXISTS assessments (
     id              INTEGER PRIMARY KEY AUTOINCREMENT,
     opportunity_id  TEXT NOT NULL REFERENCES opportunity_spaces(id) ON DELETE CASCADE,
-    role            TEXT NOT NULL,            -- strategist | sales | presales
+    role            TEXT NOT NULL,            -- unused since roles were removed (2026-11-23); written ''"
     axis            TEXT NOT NULL,            -- strategic_fit | customer_demand | deliverability
     rating          INTEGER NOT NULL,         -- 0..5
     confidence      INTEGER NOT NULL DEFAULT 3,  -- 1..5, weights the aggregate

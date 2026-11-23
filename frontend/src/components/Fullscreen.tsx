@@ -39,7 +39,6 @@ type Pane = 'space' | 'competitors' | 'brief' | 'presales'
 interface Props {
   topic: Topic | null
   topicId: string
-  role: string
   meta: Meta
   workflowMeta?: WorkflowMeta | null
   refreshKey?: number
@@ -54,7 +53,7 @@ interface Props {
 }
 
 export default function SpaceFullscreen({
-  topic, topicId, role, meta, workflowMeta, refreshKey, rank, onChanged, onHelp, onExplain, onClose,
+  topic, topicId, meta, workflowMeta, refreshKey, rank, onChanged, onHelp, onExplain, onClose,
   onDeleted,
 }: Props) {
   const [pane, setPane] = useState<Pane>('space')
@@ -148,7 +147,7 @@ export default function SpaceFullscreen({
       <div className="fs-body">
         {pane === 'space' && (
           <div className="fs-space">
-            <TopicDetail topicId={topicId} role={role} meta={meta}
+            <TopicDetail topicId={topicId} meta={meta}
                          workflowMeta={workflowMeta}
                          onChanged={onChanged}
                          refreshKey={refreshKey}

@@ -7,7 +7,7 @@ import type { DeletionImpact } from '../types'
  *
  * A space is the hub of the schema. Thirteen tables point at it, and by the time
  * anybody wants one gone it is carrying evidence attachments, two scored
- * trajectories, curator-confirmed asset links, stage-gate history, per-role
+ * trajectories, curator-confirmed asset links, stage-gate history,
  * assessments, a market estimate, a written description, a competitive read, a
  * PDF, and possibly a place in a portfolio plan. None of that is visible from
  * the button, so the dialog asks the server what would go and reads the answer

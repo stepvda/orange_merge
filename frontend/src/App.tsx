@@ -20,9 +20,9 @@ import FootprintCard from './components/Footprint'
 import TaxonomyWatch from './components/TaxonomyWatch'
 import { useAnnounce } from './components/Announcer'
 import {
-  IconAutoTheme, IconBars, IconBoard, IconCalendar, IconClipboard, IconCompass,
+  IconAutoTheme, IconBars, IconBoard, IconCalendar,
   IconCoverageGrid, IconDoc, IconList, IconMoon, IconPanel, IconPerson, IconRadar,
-  IconRoute, IconSignOut, IconSpark, IconSun, IconTag, IconWhitespace, IconExplore, IconMindmap,
+  IconRoute, IconSignOut, IconSpark, IconSun, IconWhitespace, IconExplore, IconMindmap,
 } from './components/Icons'
 import { formatEur } from './components/MarketSize'
 import { api, setSessionEndedHandler } from './api'
@@ -31,9 +31,9 @@ import { EMPTY_FILTERS } from './types'
 
 type Tab = 'radar' | 'list' | 'brief' | 'detail' | 'workflow' | 'analytics' | 'explore' | 'whitespace' | 'coverage' | 'portfolio'
 
-/** Radar and List are ONE view rendered two ways — the same ranked set, plotted
- *  against the two axes or laid out as rows — so they are boxed together the way
- *  the roles are. Which of the two you want is a rendering preference; the four
+/** Radar and List are ONE view rendered two ways — the same set of spaces,
+ *  plotted against the two axes or laid out as rows — so they are boxed
+ *  together. Which of the two you want is a rendering preference; the tabs
  *  after them are different questions about the corpus. */
 const RANKED_TABS: readonly Tab[] = ['radar', 'list'] as const
 const OTHER_TABS: readonly Tab[] = ['brief', 'analytics', 'explore', 'whitespace', 'coverage', 'portfolio'] as const
@@ -53,12 +53,6 @@ const TAB_ICONS: Record<Tab, (props: { className?: string }) => JSX.Element> = {
   radar: IconRadar, list: IconList, brief: IconDoc, detail: IconPanel,
   workflow: IconBoard, analytics: IconBars, explore: IconExplore, whitespace: IconWhitespace, coverage: IconCoverageGrid,
   portfolio: IconMindmap,
-}
-
-/** Role id -> mark. Keyed off the ids in `role_modes.yaml`; an id this does not
- *  know still gets a button, with the generic person mark, rather than a hole. */
-const ROLE_ICONS: Record<string, (props: { className?: string }) => JSX.Element> = {
-  strategist: IconCompass, sales: IconTag, presales: IconClipboard,
 }
 
 /** A top-bar label, set on up to two lines.
@@ -124,7 +118,7 @@ function loadLayout(): Layout {
  *
  * A salesperson finding a topic and sending it to a colleague is the normal way
  * this tool spreads inside an organisation, so ?topic=OS012 has to survive a
- * copy-paste. ?role and ?theme ride along for the same reason.
+ * copy-paste. ?theme rides along for the same reason.
  */
 const FILTER_KEYS = ['vertical', 'domain', 'svp', 'persona', 'geography', 'market_cluster', 'horizon', 'competition'] as const
 
@@ -148,7 +142,6 @@ function initialFromUrl() {
   return {
     topic: params.get('topic'),
     explain: params.get('explain'),
-    role: params.get('role'),
     // The Portfolio browser has an address of its own, /portfolio, rather than
     // ?tab=portfolio: it is the page people are sent to for the catalogue.
     tab: (isPortfolioPath() ? 'portfolio' : params.get('tab')) as Tab | null,
@@ -160,48 +153,10 @@ function initialFromUrl() {
     // shareable as the topic itself.
     fullscreen: params.get('view') === 'full',
     planner: params.get('view') === 'planner',
-    sort: (params.get('sort') ?? 'rank') as SortId,
+    sort: (params.get('sort') ?? 'attractiveness') as SortId,
     filters,
     theme: (theme === 'dark' || theme === 'light' ? theme : 'auto') as 'auto' | 'light' | 'dark',
   }
-}
-
-/** AC-05's cap, with the way out AND the way back.
- *
- * Lifting the cap to 148 turns the radar into a blob, and there was no control
- * to undo it — the only route back to a readable view was a page reload.
- */
-function ShowMore({ view, limit, setLimit }: {
-  view: RadarView | null
-  limit: number | null
-  setLimit: (value: number | null) => void
-}) {
-  if (!view) return null
-  const shownCount = view.topics.length + view.exploration.length
-  if (view.total_matching <= shownCount && limit === null) return null
-  return (
-    <div className="show-more">
-      {view.total_matching > shownCount ? (
-        <>
-          <span>
-            {view.total_matching - shownCount} more match. The view shows {view.cap} at a time,
-            so the list stays readable.
-          </span>
-          <button onClick={() => setLimit((limit ?? view.cap ?? 24) + (view.cap ?? 24))}>
-            Show {Math.min(view.cap ?? 24, view.total_matching - shownCount)} more
-          </button>
-          <button onClick={() => setLimit(view.total_matching)}>
-            Show all {view.total_matching}
-          </button>
-        </>
-      ) : (
-        <span>Showing all {view.total_matching} that match.</span>
-      )}
-      {limit !== null && (
-        <button onClick={() => setLimit(null)}>Back to the top {view.cap}</button>
-      )}
-    </div>
-  )
 }
 
 interface RadarProps {
@@ -224,7 +179,6 @@ interface RadarProps {
 function RadarApp({ user, minPasswordLength, onSignedOut, onUserChanged }: RadarProps) {
   const initial = useMemo(initialFromUrl, [])
   const [meta, setMeta] = useState<Meta | null>(null)
-  const [role, setRole] = useState(initial.role ?? 'strategist')
   const [filters, setFilters] = useState<FilterState>(initial.filters)
   const [sort, setSort] = useState<SortId>(initial.sort)
   const [view, setView] = useState<RadarView | null>(null)
@@ -260,10 +214,6 @@ function RadarApp({ user, minPasswordLength, onSignedOut, onUserChanged }: Radar
   const [divergent, setDivergent] = useState<any[]>([])
   const [sizing, setSizing] = useState<any | null>(null)
   const [refreshKey, setRefreshKey] = useState(0)
-  // AC-05 caps the DEFAULT view for signal-to-noise. It does not require
-  // hiding the rest with no way to ask — without this, adding 99 topics to
-  // the corpus changed nothing a user could see.
-  const [limit, setLimit] = useState<number | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [theme, setTheme] = useState<'auto' | 'light' | 'dark'>(initial.theme)
   const [help, setHelp] = useState<string | null>(null)
@@ -379,14 +329,13 @@ function RadarApp({ user, minPasswordLength, onSignedOut, onUserChanged }: Radar
   useEffect(() => {
     const params = new URLSearchParams(window.location.search)
     selected ? params.set('topic', selected) : params.delete('topic')
-    role === 'strategist' ? params.delete('role') : params.set('role', role)
     tab === 'radar' || tab === 'portfolio' ? params.delete('tab') : params.set('tab', tab)
     generating ? params.set('screen', 'generate') : params.delete('screen')
     if (planner) params.set('view', 'planner')
     else if (fullscreen && selected) params.set('view', 'full')
     else params.delete('view')
     theme === 'auto' ? params.delete('theme') : params.set('theme', theme)
-    sort === 'rank' ? params.delete('sort') : params.set('sort', sort)
+    sort === 'attractiveness' ? params.delete('sort') : params.set('sort', sort)
     for (const key of FILTER_KEYS) {
       filters[key].length ? params.set(key, filters[key].join(',')) : params.delete(key)
     }
@@ -396,7 +345,7 @@ function RadarApp({ user, minPasswordLength, onSignedOut, onUserChanged }: Radar
     const base = window.location.pathname.replace(/\/?portfolio\/?$/, '') || '/'
     const path = tab === 'portfolio' ? `${base.replace(/\/$/, '')}/portfolio` : base
     window.history.replaceState(null, '', query ? `${path}?${query}` : path)
-  }, [selected, role, tab, theme, sort, filters, generating, fullscreen, planner])
+  }, [selected, tab, theme, sort, filters, generating, fullscreen, planner])
 
   useEffect(() => {
     api.meta().then(setMeta).catch((e) => setError(String(e)))
@@ -411,7 +360,7 @@ function RadarApp({ user, minPasswordLength, onSignedOut, onUserChanged }: Radar
   useEffect(() => {
     let cancelled = false
     setViewLoading(true)
-    api.view(role, filters, limit, sort)
+    api.view(filters, sort)
       .then((v) => { if (!cancelled) { setView(v); setError(null) } })
       .catch((e) => { if (!cancelled) setError(String(e)) })
       .finally(() => { if (!cancelled) setViewLoading(false) })
@@ -419,9 +368,7 @@ function RadarApp({ user, minPasswordLength, onSignedOut, onUserChanged }: Radar
     // refreshKey is in here so a generation run that added spaces is reflected
     // without a reload: the radar behind the generator is stale the moment it
     // finishes.
-  }, [role, filters, limit, sort, refreshKey])
-
-  useEffect(() => { setLimit(null) }, [role, filters, sort])
+  }, [filters, sort, refreshKey])
 
   // White space is the one tab the rail drives, so it — and only it — refetches
   // on a filter change.
@@ -443,7 +390,7 @@ function RadarApp({ user, minPasswordLength, onSignedOut, onUserChanged }: Radar
       api.coverage().then(setCoverage).catch(() => {})
     }
     if (tab === 'workflow') {
-      fetch(`/api/workflow/board?role=${role}`).then((r) => r.json()).then(setBoard).catch(() => {})
+      fetch('/api/workflow/board').then((r) => r.json()).then(setBoard).catch(() => {})
     }
     if (tab === 'analytics') {
       fetch('/api/analytics/summary').then((r) => r.json()).then(setSummary).catch(() => {})
@@ -451,12 +398,11 @@ function RadarApp({ user, minPasswordLength, onSignedOut, onUserChanged }: Radar
       fetch('/api/divergence').then((r) => r.json()).then((d) => setDivergent(d.topics ?? [])).catch(() => {})
       fetch('/api/analytics/market-size').then((r) => r.json()).then(setSizing).catch(() => {})
     }
-  }, [tab, coverage, role, refreshKey])
+  }, [tab, coverage, refreshKey])
 
-  // The exploration slot is shown INSIDE the list, marked, so the randomised
-  // sample actually gets seen — that is the point of the remedy (§4.7.6).
+  // Every matching space: there is no cap and no role filter any more.
   const shown = useMemo(
-    () => (view ? [...view.topics, ...view.exploration] : []),
+    () => (view ? view.topics : []),
     [view],
   )
 
@@ -520,7 +466,8 @@ function RadarApp({ user, minPasswordLength, onSignedOut, onUserChanged }: Radar
       const res = await fetch(`/api/topics/${topicId}/stage`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ to_stage: toStage, actor: `${role}@demo`, actor_role: role }),
+        // The server records the signed-in user as the actor.
+        body: JSON.stringify({ to_stage: toStage }),
       })
       if (!res.ok) throw new Error(`${res.status}`)
       announce(`${topicId} moved to ${label}`)
@@ -531,9 +478,9 @@ function RadarApp({ user, minPasswordLength, onSignedOut, onUserChanged }: Radar
     } catch {
       setMoveError(`${topicId} could not be moved to ${label} — it is back where it was.`)
     } finally {
-      fetch(`/api/workflow/board?role=${role}`).then((r) => r.json()).then(setBoard).catch(() => {})
+      fetch('/api/workflow/board').then((r) => r.json()).then(setBoard).catch(() => {})
     }
-  }, [role, wfMeta, announce])
+  }, [wfMeta, announce])
 
   /** Open a view tab, leaving whatever full screen is over it.
    *
@@ -632,20 +579,13 @@ function RadarApp({ user, minPasswordLength, onSignedOut, onUserChanged }: Radar
     announce(`Opportunity space ${id} deleted.`)
   }, [announce])
 
-  /** Order control.
-   *
-   * The blocker it fixes: the five largest sized opportunities in the radar were
-   * unreachable from the default view, because the only ordering was the role's
-   * ranking function and the view is capped at 24 (AC-05). Sorting re-orders
-   * what the role may see; it never widens it — a salesperson sorting by market
-   * size still cannot reach white space (§4.5.3), and the label says so.
-   */
+  /** Order control. Attractiveness by default; every space is always shown. */
   const sortControl = meta && (
     <label className="sort-control">
       <span>Order</span>
       <select value={sort} onChange={(e) => setSort(e.target.value as SortId)}
-              title="Re-orders the topics this role can see. It does not change which topics that is.">
-        {(meta.sorts ?? [{ id: 'rank' as SortId, label: 'Ranked for this role' }]).map((option) => (
+              title="Changes the order of the spaces. Every matching space is always shown.">
+        {(meta.sorts ?? [{ id: 'attractiveness' as SortId, label: 'Highest attractiveness' }]).map((option) => (
           <option key={option.id} value={option.id}>{option.label}</option>
         ))}
       </select>
@@ -663,7 +603,6 @@ function RadarApp({ user, minPasswordLength, onSignedOut, onUserChanged }: Radar
   }
   if (!meta) return <div className="empty">Loading…</div>
 
-  const activeRole = meta.roles.find((r) => r.id === role)
   const selectedRank = shown.findIndex((t) => t.id === selected)
 
   return (
@@ -682,26 +621,6 @@ function RadarApp({ user, minPasswordLength, onSignedOut, onUserChanged }: Radar
           <div className="brand">
             <span className="brand-mark" />
             <h1>Innovation Radar</h1>
-          </div>
-
-          <HelpButton topic="role_modes" onOpen={setHelp} />
-
-          {/* The three roles are one choice, so they are drawn as one control:
-              a box makes "pick exactly one of these" visible without a label
-              spending a line saying it. */}
-          <div className="btn-group roles" role="group" aria-label="Role mode">
-            {meta.roles.map((mode) => {
-              const Icon = ROLE_ICONS[mode.id] ?? IconPerson
-              return (
-                <button key={mode.id} className="topbtn" aria-pressed={role === mode.id}
-                        aria-label={mode.label}
-                        title={`${mode.description} Sees link types ${mode.link_types.join(', ')}.`}
-                        onClick={() => setRole(mode.id)}>
-                  <Icon className="btn-icon" />
-                  <TopLabel text={mode.label} />
-                </button>
-              )
-            })}
           </div>
 
           <div className="tabs" role="group" aria-label="View">
@@ -831,7 +750,6 @@ function RadarApp({ user, minPasswordLength, onSignedOut, onUserChanged }: Radar
         <SpaceFullscreen
           topicId={selected}
           topic={selectedTopic}
-          role={role}
           meta={meta}
           workflowMeta={wfMeta}
           refreshKey={refreshKey}
@@ -902,31 +820,13 @@ function RadarApp({ user, minPasswordLength, onSignedOut, onUserChanged }: Radar
         </aside>
 
         <main className="main-pane" id="main-pane" tabIndex={-1}>
-          {activeRole && (
-            <div style={{ marginBottom: 14, fontSize: 12.5, color: 'var(--text-secondary)' }}>
-              <b>{activeRole.label}.</b> {activeRole.description}{' '}
-              <span style={{ color: 'var(--text-muted)' }}>
-                {/* The old wording ("showing link types L1, L2…") read as a filter
-                    on the links inside a topic, which is not what it does: it
-                    decides which spaces appear at all. */}
-                Only spaces Orange could deliver at {
-                  activeRole.link_types.length > 2
-                    ? `${activeRole.link_types[0]}–${activeRole.link_types[activeRole.link_types.length - 1]}`
-                    : activeRole.link_types.join(' or ')
-                } appear here, ordered for this role.
-                <HelpButton topic="role_modes" onOpen={setHelp} />
-              </span>
-            </div>
-          )}
-
           {tab === 'radar' && (
             <div className="panel">
               <div className="panel-head">
                 <h2>Radar</h2>
                 <HelpButton topic="radar" onOpen={setHelp} />
                 <span className="sub">
-                  {view ? view.total_matching : '…'} match this role and filter · showing {shown.length}
-                  {sort !== 'rank' && ' · the cap now takes the top of your chosen order'}
+                  {view ? view.total_matching : '…'} opportunity space{view?.total_matching === 1 ? '' : 's'} match the filters
                 </span>
                 <span className="spacer" />
                 {sortControl}
@@ -948,7 +848,6 @@ function RadarApp({ user, minPasswordLength, onSignedOut, onUserChanged }: Radar
                   </button>
                 </div>
               </div>
-              <ShowMore view={view} limit={limit} setLimit={setLimit} />
             </div>
           )}
 
@@ -956,18 +855,14 @@ function RadarApp({ user, minPasswordLength, onSignedOut, onUserChanged }: Radar
             <div className="panel">
               <div className="panel-head">
                 <h2>Topics</h2>
-                <HelpButton topic="role_modes" onOpen={setHelp} />
                 <span className="sub">
-                  {view ? view.total_matching : '…'} match this role and filter · showing {shown.length}
-                  {sort === 'rank'
-                    ? ` · ranked by the ${activeRole?.label} ranking function`
-                    : ` · ordered by ${(meta.sorts ?? []).find((s2) => s2.id === sort)?.label?.toLowerCase()},`
-                      + ` within what ${activeRole?.label} may see`}
+                  {view ? view.total_matching : '…'} opportunity space{view?.total_matching === 1 ? '' : 's'} match the filters
+                  {' · ordered by '}{(meta.sorts ?? []).find((s2) => s2.id === sort)?.label?.toLowerCase()}
                 </span>
                 <span className="spacer" />
                 <button className="btn" disabled={shown.length === 0}
                         title="Download the spaces shown here as CSV, in this order"
-                        onClick={() => downloadCsv(shown, role)}>CSV</button>
+                        onClick={() => downloadCsv(shown)}>CSV</button>
                 {sortControl}
               </div>
               <div className="panel-body" style={{ padding: 8 }}>
@@ -980,7 +875,7 @@ function RadarApp({ user, minPasswordLength, onSignedOut, onUserChanged }: Radar
                   <div className="topic-row" key={topic.id}
                        data-selected={selected === topic.id || undefined}
                        onClick={() => selectAndShow(topic.id)}>
-                    <div className="topic-rank">{topic.exploration_slot ? '★' : i + 1}</div>
+                    <div className="topic-rank">{i + 1}</div>
                     <div>
                       {/* The row stays clickable for a mouse; the statement is a
                           real button so a keyboard reaches it too. */}
@@ -1032,7 +927,6 @@ function RadarApp({ user, minPasswordLength, onSignedOut, onUserChanged }: Radar
                           </span>
                         )}
                         {topic.evidence_gap_warning && <span className="badge gap">⚠ evidence gap</span>}
-                        {topic.exploration_slot && <span className="badge explore">exploration slot</span>}
                         {topic.divergence && <span className="badge gap">⚠ review</span>}
                       </div>
                     </div>
@@ -1064,7 +958,6 @@ function RadarApp({ user, minPasswordLength, onSignedOut, onUserChanged }: Radar
                   </div>
                 ))}
               </div>
-              <ShowMore view={view} limit={limit} setLimit={setLimit} />
             </div>
           )}
 
@@ -1084,7 +977,7 @@ function RadarApp({ user, minPasswordLength, onSignedOut, onUserChanged }: Radar
                 )}
               </div>
               <div className="panel-body">
-                <TopicDetail topicId={selected} role={role} meta={meta}
+                <TopicDetail topicId={selected} meta={meta}
                              workflowMeta={wfMeta}
                              onChanged={() => setRefreshKey((k) => k + 1)}
                              refreshKey={refreshKey}
@@ -1193,11 +1086,10 @@ function RadarApp({ user, minPasswordLength, onSignedOut, onUserChanged }: Radar
                        onExplain={openExplain} onMove={moveStage} />
                 <p style={{ fontSize: 11.5, color: 'var(--text-muted)', marginTop: 14, marginBottom: 0 }}>
                   <b>Drag a card into another column to move it a stage</b>, or focus one and
-                  press Alt + ← / →. Every move is recorded against your role, with the stage it
-                  came from. Open a space to assess it. Each role rates only its own axis — strategy rates
-                  strategic fit, sales rates customer demand, presales rates deliverability. Those
-                  ratings form a third quantity, <b>conviction</b>, which changes what surfaces first
-                  for each role but never alters attractiveness or right to win.
+                  press Alt + ← / →. Every move is recorded against your name, with the stage it
+                  came from. Open a space to assess it: anyone can rate strategic fit, customer
+                  demand and deliverability. Those ratings form a third quantity, <b>conviction</b>,
+                  which is shown beside attractiveness and right to win but never alters them.
                 </p>
               </div>
             </div>
@@ -1206,12 +1098,12 @@ function RadarApp({ user, minPasswordLength, onSignedOut, onUserChanged }: Radar
           {tab === 'analytics' && summary && (
             <>
               <p style={{ fontSize: 11.5, color: 'var(--text-muted)', margin: '0 0 8px' }}>
-                Portfolio-wide and role-blind: these count the whole corpus, not the
-                {' '}{view?.total_matching ?? 0} spaces your current role and filters show.
+                Portfolio-wide: these count the whole corpus, not the
+                {' '}{view?.total_matching ?? 0} spaces your current filters show.
               </p>
               <div className="kpi-row">
                 <Kpi value={summary.topics} label="Opportunity spaces"
-                     sub={`${summary.topics_assessed} assessed by a role`} />
+                     sub={`${summary.topics_assessed} assessed`} />
                 <Kpi value={summary.signals.toLocaleString()} label="Signals"
                      sub={`${summary.relevant_signals.toLocaleString()} passed the gate`} />
                 <Kpi value={summary.sources} label="Sources" />
@@ -1528,7 +1420,7 @@ function RadarApp({ user, minPasswordLength, onSignedOut, onUserChanged }: Radar
             <HelpButton topic="conviction" onOpen={setHelp} label="C" />
             <HelpButton topic="portfolio_distance" onOpen={setHelp} label="L" />
           </div>
-          <TopicDetail topicId={selected} role={role} meta={meta}
+          <TopicDetail topicId={selected} meta={meta}
                        workflowMeta={wfMeta}
                        onChanged={() => setRefreshKey((k) => k + 1)}
                        refreshKey={refreshKey}
@@ -1631,7 +1523,7 @@ export default function App() {
 /** CSV export of the ranked list (ported from innovation_radar_orange's
  *  "download" button). Exactly the rows on screen, in their order, so the file
  *  answers "what was I looking at" rather than "what is in the database". */
-function downloadCsv(topics: Topic[], role: string) {
+function downloadCsv(topics: Topic[]) {
   const cols: [string, (t: Topic) => unknown][] = [
     ['id', (t) => t.id], ['statement', (t) => t.statement],
     ['vertical', (t) => t.labels.vertical], ['use_case', (t) => t.labels.use_case],
@@ -1652,7 +1544,7 @@ function downloadCsv(topics: Topic[], role: string) {
   const url = URL.createObjectURL(blob)
   const a = document.createElement('a')
   a.href = url
-  a.download = `opportunity-spaces-${role}-${new Date().toISOString().slice(0, 10)}.csv`
+  a.download = `opportunity-spaces-${new Date().toISOString().slice(0, 10)}.csv`
   a.click()
   URL.revokeObjectURL(url)
 }
