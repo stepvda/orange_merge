@@ -31,6 +31,8 @@ archive/
 # the directory has to be re-included before its contents can be.
 !data/db-archive/
 !data/db-archive/**
+# A zipped copy of the database (~42 MB, under GitHub's 50 MB warning).
+!data/radar.zip
 
 # Python
 __pycache__/
