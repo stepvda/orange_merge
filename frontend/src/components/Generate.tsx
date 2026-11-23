@@ -8,6 +8,7 @@ import type {
   GenerationOptions, HypothesisRequest, Meta, Topic,
 } from '../types'
 import { EMPTY_CONSTRAINTS, constraintCount } from '../types'
+import SvpBadge from './SvpBadge'
 
 /** Ask the radar for more opportunity spaces (FR-06, §4.4).
  *
@@ -109,6 +110,7 @@ function MatchRow({ topic, onOpen }: { topic: Topic; onOpen: () => void }) {
       <span className="gen-match-body">
         <span className="gen-match-statement">{topic.statement}</span>
         <span className="gen-match-meta">
+          <SvpBadge topic={topic} />{' '}
           {topic.labels.vertical} · {topic.labels.use_case} · {topic.labels.technology}
           {topic.horizon && ` · ${topic.horizon.toUpperCase()}`}
           {topic.geographies.length > 0 && ` · ${topic.geographies.join(' ')}`}
@@ -148,6 +150,7 @@ function CreatedSpace({ topic, onOpen }: { topic: Topic; onOpen: () => void }) {
         <span className="gen-space-id">{topic.id}</span>
       </div>
       <p className="gen-space-meta">
+        <SvpBadge topic={topic} />{' '}
         {topic.labels.vertical} · {topic.labels.use_case} · {topic.labels.technology}
         {topic.horizon && <> · <b>{topic.horizon.toUpperCase()}</b></>}
         {topic.geographies.length > 0 && ` · ${topic.geographies.join(' ')}`}

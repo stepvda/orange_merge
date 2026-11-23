@@ -6,6 +6,7 @@ import TopicDetail from './TopicDetail'
 import type { WorkflowMeta } from './Workflow'
 import { HelpButton } from './Help'
 import type { Meta, Topic } from '../types'
+import SvpBadge from './SvpBadge'
 
 /** One opportunity space, with nothing else on screen.
  *
@@ -103,6 +104,7 @@ export default function SpaceFullscreen({
           <h2>{topic?.statement ?? 'Loading…'}</h2>
           {topic && (
             <p className="fs-triple">
+              <SvpBadge topic={topic} detailed />{' '}
               {topic.labels.vertical} × {topic.labels.use_case} × {topic.labels.technology}
             </p>
           )}

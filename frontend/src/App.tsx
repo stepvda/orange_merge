@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import BriefView from './components/Brief'
 import Filters from './components/Filters'
 import RadarChart, { RadarLegend, rtwColor } from './components/RadarChart'
+import SvpBadge from './components/SvpBadge'
 import TopicDetail from './components/TopicDetail'
 import { Board, type BoardData, type WorkflowMeta } from './components/Workflow'
 import { BarList, ChartCard, DivergenceChart, Heatmap, Kpi, StackedBar, StageFunnel } from './components/Charts'
@@ -988,6 +989,7 @@ function RadarApp({ user, minPasswordLength, onSignedOut, onUserChanged }: Radar
                         <p className="topic-statement">{topic.statement}</p>
                       </button>
                       <div className="topic-triple">
+                        <SvpBadge topic={topic} />
                         {topic.labels.vertical} × {topic.labels.use_case} × {topic.labels.technology}
                         {' · '}{topic.signal_count} signals
                         {/* The cluster, not the country codes: three ISO pairs on a
@@ -1127,6 +1129,7 @@ function RadarApp({ user, minPasswordLength, onSignedOut, onUserChanged }: Radar
                         <p className="topic-statement">{topic.statement}</p>
                       </button>
                       <div className="topic-triple">
+                        <SvpBadge topic={topic} />
                         {topic.labels.vertical} × {topic.labels.use_case} × {topic.labels.technology}
                         {topic.market_cluster_labels.length > 0
                           && ` · ${topic.market_cluster_labels.join(', ')}`}
@@ -1632,7 +1635,8 @@ function downloadCsv(topics: Topic[], role: string) {
   const cols: [string, (t: Topic) => unknown][] = [
     ['id', (t) => t.id], ['statement', (t) => t.statement],
     ['vertical', (t) => t.labels.vertical], ['use_case', (t) => t.labels.use_case],
-    ['technology', (t) => t.labels.technology], ['domains', (t) => t.domain_labels.join('; ')],
+    ['technology', (t) => t.labels.technology], ['svp', (t) => t.svp_label ?? ''],
+    ['domains', (t) => t.domain_labels.join('; ')],
     ['state', (t) => t.state], ['horizon', (t) => t.horizon ?? ''],
     ['attractiveness', (t) => t.attractiveness?.score ?? ''], ['right_to_win', (t) => t.right_to_win?.score ?? ''],
     ['portfolio_distance', (t) => `L${t.portfolio_distance}`], ['signals', (t) => t.signal_count],

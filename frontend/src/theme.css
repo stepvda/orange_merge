@@ -553,6 +553,19 @@ body[data-resizing="true"] { cursor: col-resize; user-select: none; }
 .badge.now   { border-color: var(--status-good); color: var(--status-good); }
 .badge.explore { border-color: var(--accent); color: var(--accent-text); }
 
+/* Portfolio SVP (components/SvpBadge). Solid, in the text colour: it is the
+   first thing to read about a space, and orange is taken by right-to-win. */
+.svp-chip {
+  display: inline-flex; align-items: center; gap: 5px;
+  font-size: 11px; line-height: 1.5; padding: 1px 8px; border-radius: 4px;
+  background: var(--text-primary); color: var(--surface-2);
+  white-space: nowrap; max-width: 100%; overflow: hidden; text-overflow: ellipsis;
+  vertical-align: middle;
+}
+.svp-chip b { font-family: var(--mono); font-weight: 700; letter-spacing: .02em; }
+.svp-chip-vp { opacity: .8; overflow: hidden; text-overflow: ellipsis; }
+.topic-triple .svp-chip { margin-right: 6px; }
+
 /* ---------- score breakdown ---------- */
 
 .score-block { margin-bottom: 14px; }

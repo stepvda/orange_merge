@@ -14,6 +14,7 @@ import { rtwColor } from './RadarChart'
 import MarketSizePanel, { formatEur } from './MarketSize'
 import CompetitionPanel from './Competition'
 import DescriptionPanel from './Description'
+import SvpBadge from './SvpBadge'
 
 /** §4.9 Topic detail — "one page, in the order the user's questions arrive":
  *   the opportunity statement;
@@ -200,6 +201,7 @@ export default function TopicDetail({ topicId, role, meta, rank, workflowMeta, o
   return (
     <div>
       <div style={{ display: 'flex', gap: 8, alignItems: 'baseline', marginBottom: 8, flexWrap: 'wrap' }}>
+        <SvpBadge topic={topic} detailed />
         <span className="badge">{topic.id}</span>
         <span className="badge">{topic.state}</span>
         {onHelp && <HelpButton topic="lifecycle" onOpen={onHelp} />}
@@ -394,6 +396,9 @@ export default function TopicDetail({ topicId, role, meta, rank, workflowMeta, o
             strip of pills: a reader could not tell a business domain from a
             buyer from a country code. */}
         {([
+          ['Portfolio SVP', topic.svp_label
+            ? [topic.svp_label + (topic.svp_value_proposition ? ` — ${topic.svp_value_proposition}` : '')]
+            : []],
           ['Business domain', topic.domain_labels],
           ['Who signs', topic.persona_labels],
           /* The cluster sits above the country codes because it is the unit the
