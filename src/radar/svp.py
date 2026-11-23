@@ -94,6 +94,23 @@ def _normalise(vectors) -> np.ndarray:
     return vectors / np.maximum(np.linalg.norm(vectors, axis=-1, keepdims=True), 1e-12)
 
 
+def svp_vocabulary(path: Path = SNAPSHOT_PATH) -> list[dict[str, str]]:
+    """The SVPs as filter/sector vocabulary, read from the catalogue alone.
+
+    No embedder involved, so it is instant even on a cold start — the meta
+    endpoint that gates the whole UI must not wait for the model to load.
+    """
+    if not path.is_file():
+        return []
+    data = json.loads(path.read_text(encoding="utf-8"))
+    names = [(s["key"], s["name"]) for s in data.get("svps") or []]
+    vps = [v for v in data.get("value_propositions") or []
+           if not str(v.get("id", "")).endswith("-OTHER")]
+    return [{"id": key, "label": name,
+             "definition": "; ".join(v["name"] for v in vps if v.get("svp") == key)}
+            for key, name in names]
+
+
 _instance: SvpClassifier | None = None
 _instance_built = False
 _instance_lock = threading.Lock()

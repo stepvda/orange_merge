@@ -112,3 +112,17 @@ def test_generation_svp_constraint_is_enforced(clf, tmp_path, monkeypatch):
     # And the prompt names the SVP and its value propositions.
     assert any("Sustainability (value propositions: IT for Green)" in line
                for line in synth._constraint_block() or [])
+
+
+def test_svp_vocabulary_needs_no_embedder(tmp_path):
+    """/api/meta gates the UI; it must not wait for the embedding model."""
+    from radar.svp import svp_vocabulary
+    path = tmp_path / "portfolio.json"
+    path.write_text(json.dumps({
+        "svps": [{"key": "DI", "name": "Digital Infrastructure"}],
+        "value_propositions": [{"id": "DI-VP1", "svp": "DI", "name": "Secured Connectivity"},
+                               {"id": "DI-OTHER", "svp": "DI", "name": "Other offers"}],
+    }), encoding="utf-8")
+    assert svp_vocabulary(path) == [{"id": "DI", "label": "Digital Infrastructure",
+                                     "definition": "Secured Connectivity"}]
+    assert svp_vocabulary(tmp_path / "missing.json") == []

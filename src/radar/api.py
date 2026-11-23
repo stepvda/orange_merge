@@ -24,6 +24,7 @@ import datetime as dt
 import logging
 import os
 import tempfile
+import threading
 from pathlib import Path
 from typing import Any
 
@@ -204,13 +205,24 @@ def _llm() -> LLMClient:
 
 
 def _svp_payload() -> list[dict[str, Any]]:
+    # Read straight from the catalogue: /api/meta gates the whole UI, and the
+    # classifier needs the embedding model, which takes over a minute to import
+    # and load on a cold start.
+    from .svp import svp_vocabulary
+    return svp_vocabulary()
+
+
+# Load the SVP classifier (embedding model + value-proposition vectors) in the
+# background at boot, so the first radar request does not pay for it.
+def _warm_svp_classifier() -> None:
     from .svp import classifier
-    clf = classifier()
-    if clf is None:
-        return []
-    return [{"id": s["id"], "label": s["label"],
-             "definition": "; ".join(v["name"] for v in clf.vps if v["svp"] == s["id"])}
-            for s in clf.svps]
+    try:
+        classifier()
+    except Exception as exc:  # noqa: BLE001 — a warm-up never fails the app
+        log.warning("SVP classifier warm-up failed: %s", exc)
+
+
+threading.Thread(target=_warm_svp_classifier, name="svp-warmup", daemon=True).start()
 
 
 def _vocab_payload(vocab) -> list[dict[str, Any]]:
