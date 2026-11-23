@@ -15,7 +15,7 @@
  * offers by CRM product family (drawn dotted, tagged CRM), account figures on
  * matched references and opportunity totals on the SVPs.
  */
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { api } from '../api'
 import type {
   Portfolio, PortfolioCrmAccount, PortfolioCrmSvp, PortfolioOffer, PortfolioReference, PortfolioSvp,
@@ -312,13 +312,35 @@ export function MindMap({ root, onPick, onMore }: {
   root: MapNode; onPick: (s: Sel) => void; onMore: (key: string, step: number) => void
 }) {
   const { placed, links, width, height } = useMemo(() => layout(root), [root])
+  const svgRef = useRef<SVGSVGElement>(null)
+  const [exporting, setExporting] = useState(false)
+  const [exportError, setExportError] = useState('')
   const act = (n: MapNode) => {
     if (n.kind === 'more') { if (n.expandKey) onMore(n.expandKey, Number(n.count) || 25) }
     else if (n.pick) onPick(n.pick)
   }
+  const exportPng = async () => {
+    if (!svgRef.current) return
+    setExporting(true)
+    setExportError('')
+    try {
+      await downloadSvgAsPng(svgRef.current, `portfolio-${slug(root.label)}.png`)
+    } catch (e) {
+      setExportError(e instanceof Error ? e.message : String(e))
+    } finally {
+      setExporting(false)
+    }
+  }
   return (
+    <>
+    <div className="pf-map-bar">
+      {exportError && <span className="pf-flag">Export failed: {exportError}</span>}
+      <button onClick={exportPng} disabled={exporting} title="Download the mind map as it is shown now, as a PNG image">
+        {exporting ? 'Exporting…' : 'Export PNG'}
+      </button>
+    </div>
     <div className="pf-map" role="region" aria-label="Portfolio mind map">
-      <svg width={width} height={height} viewBox={`0 0 ${width} ${height}`}>
+      <svg ref={svgRef} width={width} height={height} viewBox={`0 0 ${width} ${height}`}>
         {links.map(({ from, to }) => {
           const x1 = from.x + NODE_W, x2 = to.x, mid = (x1 + x2) / 2
           return <path key={`${from.node.key}>${to.node.key}`}
@@ -354,7 +376,74 @@ export function MindMap({ root, onPick, onMore }: {
         or not curated. Dotted offers marked CRM were placed by their Salesforce product family, not by the curation.
       </p>
     </div>
+    </>
   )
+}
+
+/* ------------------------------------------------------------ png export */
+
+// The map is styled by portfolio.css through theme variables, which an SVG
+// rendered as an image cannot see, so the resolved values are copied inline.
+const EXPORT_PROPS = [
+  'fill', 'fill-opacity', 'stroke', 'stroke-width', 'stroke-dasharray', 'stroke-opacity', 'opacity',
+  'font-family', 'font-size', 'font-weight', 'font-style', 'letter-spacing',
+]
+
+function slug(s: string) {
+  return s.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') || 'mindmap'
+}
+
+async function downloadSvgAsPng(svg: SVGSVGElement, filename: string, scale = 2) {
+  const width = Number(svg.getAttribute('width'))
+  const height = Number(svg.getAttribute('height'))
+  // Browsers refuse canvases much beyond 16k px a side; shrink a very tall map to fit.
+  scale = Math.min(scale, 16000 / Math.max(width, height))
+  const clone = svg.cloneNode(true) as SVGSVGElement
+  clone.setAttribute('xmlns', 'http://www.w3.org/2000/svg')
+
+  const src = [svg, ...svg.querySelectorAll('*')]
+  const dst = [clone, ...clone.querySelectorAll('*')]
+  src.forEach((el, i) => {
+    const cs = getComputedStyle(el)
+    const out = dst[i] as SVGElement
+    out.removeAttribute('class')
+    out.setAttribute('style', EXPORT_PROPS.map((p) => `${p}:${cs.getPropertyValue(p)}`).join(';'))
+  })
+  clone.querySelectorAll('title').forEach((t) => t.remove())
+
+  // Paint the map's own background so the image matches the screen in either theme.
+  const bg = document.createElementNS('http://www.w3.org/2000/svg', 'rect')
+  bg.setAttribute('width', '100%')
+  bg.setAttribute('height', '100%')
+  bg.setAttribute('fill', getComputedStyle(svg.parentElement ?? svg).backgroundColor || '#fff')
+  clone.insertBefore(bg, clone.firstChild)
+
+  const data = new XMLSerializer().serializeToString(clone)
+  const url = URL.createObjectURL(new Blob([data], { type: 'image/svg+xml;charset=utf-8' }))
+  try {
+    const img = new Image()
+    await new Promise<void>((resolve, reject) => {
+      img.onload = () => resolve()
+      img.onerror = () => reject(new Error('the map could not be rendered as an image'))
+      img.src = url
+    })
+    const canvas = document.createElement('canvas')
+    canvas.width = Math.round(width * scale)
+    canvas.height = Math.round(height * scale)
+    const ctx = canvas.getContext('2d')
+    if (!ctx) throw new Error('no canvas context')
+    ctx.scale(scale, scale)
+    ctx.drawImage(img, 0, 0, width, height)
+    const blob = await new Promise<Blob | null>((resolve) => canvas.toBlob(resolve, 'image/png'))
+    if (!blob) throw new Error('the image is too large for the browser to encode')
+    const a = document.createElement('a')
+    a.href = URL.createObjectURL(blob)
+    a.download = filename
+    a.click()
+    setTimeout(() => URL.revokeObjectURL(a.href), 1000)
+  } finally {
+    URL.revokeObjectURL(url)
+  }
 }
 
 /* --------------------------------------------------------------- details */
