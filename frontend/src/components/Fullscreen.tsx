@@ -3,6 +3,7 @@ import BriefView from './Brief'
 import CompetitorAnalysisPanel from './CompetitorAnalysis'
 import PreSalesPanel from './PreSales'
 import TopicDetail from './TopicDetail'
+import { useIsAdmin } from '../admin'
 import type { WorkflowMeta } from './Workflow'
 import { HelpButton } from './Help'
 import type { Meta, Topic } from '../types'
@@ -56,6 +57,7 @@ export default function SpaceFullscreen({
   topic, topicId, meta, workflowMeta, refreshKey, rank, onChanged, onHelp, onExplain, onClose,
   onDeleted,
 }: Props) {
+  const isAdmin = useIsAdmin()
   const [pane, setPane] = useState<Pane>('space')
   const closeRef = useRef<HTMLButtonElement | null>(null)
 
@@ -132,8 +134,8 @@ export default function SpaceFullscreen({
 
         <div className="fs-help">
           <span>Help</span>
-          <HelpButton topic="attractiveness" onOpen={onHelp} label="A" />
-          <HelpButton topic="right_to_win" onOpen={onHelp} label="W" />
+          {isAdmin && <HelpButton topic="attractiveness" onOpen={onHelp} label="A" />}
+          {isAdmin && <HelpButton topic="right_to_win" onOpen={onHelp} label="W" />}
           <HelpButton topic="conviction" onOpen={onHelp} label="C" />
           <HelpButton topic="portfolio_distance" onOpen={onHelp} label="L" />
         </div>

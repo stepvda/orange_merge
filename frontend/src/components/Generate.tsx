@@ -9,6 +9,7 @@ import type {
 } from '../types'
 import { EMPTY_CONSTRAINTS, constraintCount } from '../types'
 import SvpBadge from './SvpBadge'
+import PromptPreview from './PromptPreview'
 
 /** Ask the radar for more opportunity spaces (FR-06, §4.4).
  *
@@ -364,6 +365,7 @@ function RunReport({ job, onCancel, onOpenTopic }: {
 export default function GenerateScreen({ meta, onClose, onOpenTopic, onGenerated, onHelp }: Props) {
   const [count, setCount] = useState(DEFAULT_COUNT)
   const [constraints, setConstraints] = useState<GenerationConstraints>({ ...EMPTY_CONSTRAINTS })
+  const [showPrompt, setShowPrompt] = useState(false)
   const [options, setOptions] = useState<GenerationOptions | null>(null)
   const [match, setMatch] = useState<GenerationMatch | null>(null)
   const [matchLoading, setMatchLoading] = useState(true)
@@ -698,6 +700,13 @@ export default function GenerateScreen({ meta, onClose, onOpenTopic, onGenerated
                 : starting ? 'Starting…'
                 : `Generate ${count} space${count === 1 ? '' : 's'}`}
             </button>
+            <button type="button" onClick={() => setShowPrompt(true)}
+                    title="Show the full prompt these settings send to the LLM. Nothing is sent.">
+              Show prompt
+            </button>
+            {showPrompt && (
+              <PromptPreview count={count} constraints={constraints} onClose={() => setShowPrompt(false)} />
+            )}
             {/* The reason a disabled control is disabled has to be AT the control.
                 It was already on screen, but at the top of a page whose scroll
                 height is the whole constraint rail — so the reader arrives at a

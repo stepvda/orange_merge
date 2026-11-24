@@ -694,7 +694,9 @@ CREATE TABLE IF NOT EXISTS users (
     -- still in place — a default password nobody is reminded about is a default
     -- password forever.
     must_change_password INTEGER NOT NULL DEFAULT 0,
-    last_login_at   TEXT
+    last_login_at   TEXT,
+    -- 'admin' sees the analysis and generation screens; 'user' sees the radar.
+    role            TEXT NOT NULL DEFAULT 'user'
 );
 
 CREATE TABLE IF NOT EXISTS sessions (
@@ -726,6 +728,8 @@ MIGRATIONS: list[tuple[str, str, str]] = [
     ("plans", "pdf_hash", "TEXT"),
     ("plans", "pdf_generated_at", "TEXT"),
     ("plans", "pdf_schema", "TEXT"),
+    # Admin vs normal user (2026-11-24).
+    ("users", "role", "TEXT NOT NULL DEFAULT 'user'"),
 ]
 
 

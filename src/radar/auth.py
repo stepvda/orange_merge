@@ -62,6 +62,11 @@ log = logging.getLogger(__name__)
 SESSION_COOKIE = "radar_session"
 
 #: Seeded on an empty user table, so a fresh database is usable without a shell.
+#: Account roles. An admin sees the analysis and generation screens and the
+#: detail pane's scores; a user sees the radar, the list and the portfolio.
+ADMIN_ROLE = "admin"
+ROLES = ("user", ADMIN_ROLE)
+
 DEFAULT_USERNAME = "orange"
 DEFAULT_PASSWORD = "orange"
 
@@ -274,17 +279,21 @@ class AuthService:
         return True
 
     def create_user(self, username: str, password: str, *,
-                    display_name: str | None = None) -> dict[str, Any]:
+                    display_name: str | None = None, role: str = "user",
+                    enforce_policy: bool = True) -> dict[str, Any]:
         name = normalise_username(username)
-        check_password_policy(password)
+        if role not in ROLES:
+            raise AuthError(f"Unknown role '{role}'. Known: {', '.join(ROLES)}.")
+        if enforce_policy:
+            check_password_policy(password)
         if self.get_user(name):
             raise AuthError(f"There is already an account called '{name}'.")
         now = _stamp()
         with self.db.cursor() as cur:
             cur.execute(
                 "INSERT INTO users (username, password_hash, display_name, created_at, "
-                "password_changed_at, must_change_password) VALUES (?, ?, ?, ?, ?, 0)",
-                (name, hash_password(password), display_name or None, now, now),
+                "password_changed_at, must_change_password, role) VALUES (?, ?, ?, ?, ?, 0, ?)",
+                (name, hash_password(password), display_name or None, now, now, role),
             )
         return self.get_user(name)  # type: ignore[return-value]
 
@@ -343,7 +352,7 @@ class AuthService:
     def list_users(self) -> list[dict[str, Any]]:
         rows = self.db.query(
             "SELECT username, display_name, created_at, password_changed_at, "
-            "must_change_password, last_login_at FROM users ORDER BY username"
+            "must_change_password, last_login_at, role FROM users ORDER BY username"
         )
         return [dict(row) for row in rows]
 
@@ -463,6 +472,8 @@ def public_user(row: dict[str, Any]) -> dict[str, Any]:
         "must_change_password": bool(row.get("must_change_password")),
         "last_login_at": row.get("last_login_at"),
         "password_changed_at": row.get("password_changed_at"),
+        "role": row.get("role") or "user",
+        "is_admin": (row.get("role") or "user") == ADMIN_ROLE,
     }
 
 

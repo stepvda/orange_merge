@@ -4,6 +4,7 @@ import {
 import type { FilterState, MarketCluster, Meta } from '../types'
 import { countryNames } from '../geo'
 import { EMPTY_FILTERS } from '../types'
+import { useIsAdmin } from '../admin'
 
 /** AC-04 / FR-12: multi-select on at least vertical, geography, domain and
  * persona, plus free-text search over statements and signals (§4.9) — and, since
@@ -86,6 +87,7 @@ function MultiSelect({
 }
 
 export default function Filters({ meta, filters, onChange, geographies, marketClusters, facets, totalMatching, loading }: Props) {
+  const isAdmin = useIsAdmin()
   const toggle = (key: keyof FilterState) => (id: string) => {
     const current = filters[key] as string[]
     onChange({
@@ -164,7 +166,8 @@ export default function Filters({ meta, filters, onChange, geographies, marketCl
         onToggle={toggle('horizon')}
         counts={facets.horizon}
       />
-      <MultiSelect
+      {/* Competition and Persona are admin-only filters. */}
+      {isAdmin && <MultiSelect
         title="Competition"
         icon={IconVenn}
         hint="How crowded the field is (§4.3.3) — named competitors, scored"
@@ -173,7 +176,7 @@ export default function Filters({ meta, filters, onChange, geographies, marketCl
         selected={filters.competition}
         onToggle={toggle('competition')}
         counts={facets.competition}
-      />
+      />}
 
       <div className="filter-group">
         <h3><IconDoc />Ready to sell</h3>
@@ -201,14 +204,14 @@ export default function Filters({ meta, filters, onChange, geographies, marketCl
         onToggle={toggle('svp')}
         counts={facets.svp}
       />
-      <MultiSelect
+      {isAdmin && <MultiSelect
         title="Persona"
         icon={IconPerson}
         items={meta.personas}
         selected={filters.persona}
         onToggle={toggle('persona')}
         counts={facets.persona}
-      />
+      />}
       {marketClusters.length > 0 && (
         <MultiSelect
           title="Market cluster"

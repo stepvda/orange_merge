@@ -2506,3 +2506,14 @@ a.chat-ev-body:hover .chat-ev-title { color: var(--accent-text); text-decoration
   .hb-steps, .hb-defences, .hb-two-qs, .hb-gloss { grid-template-columns: minmax(0, 1fr); }
   .hb-body > p { max-width: none; }
 }
+
+/* ---------- generation prompt preview ---------- */
+.prompt-modal { max-width: 980px; max-height: 88vh; }
+.prompt-modal .help-head .spacer { flex: 1; }
+.prompt-modal h4 { margin: 16px 0 6px; font-size: 13px; color: var(--text-primary); }
+.prompt-text {
+  font-family: var(--mono); font-size: 11.5px; line-height: 1.5;
+  white-space: pre-wrap; word-break: break-word;
+  background: var(--surface-2); border: 1px solid var(--border);
+  border-radius: var(--radius); padding: 10px 12px; margin: 0;
+}

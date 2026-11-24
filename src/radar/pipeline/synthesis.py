@@ -854,6 +854,38 @@ class Synthesiser:
         return {"cluster_id": "brief", "label": "written brief", "keyphrases": "[]",
                 "signals": signals, "similarities": [round(float(sims[i]), 3) for i in order]}
 
+    def preview_prompt(self, target_new: int | None = None) -> dict[str, Any]:
+        """The exact prompt the first synthesis call of a run would send.
+
+        Built with the same helpers `_run_once` and `_generate` use — first
+        cluster in run order, first lens, the run's constraint block — so what
+        the Generate screen shows is what the model receives. Every later call
+        differs only in its cluster's evidence and its lens.
+        """
+        system = prompts.synthesis_system_prompt(self.cfg)
+        clusters = self._cluster_ids(None, set(), target_new)
+        passes = max(1, int(self.cfg.settings["curation"].get("candidates_per_cluster", 1)))
+        out: dict[str, Any] = {
+            "system": system, "user": None, "cluster": None,
+            "clusters_in_scope": len(clusters), "passes_per_cluster": passes,
+            "lenses": list(self.GENERATION_LENSES) if passes > 1 else [],
+            "temperature": self.temperature,
+        }
+        for cluster_id in clusters:
+            payload = self._cluster_payload(cluster_id)
+            if not payload["signals"]:
+                continue
+            offset = abs(hash(str(payload.get("cluster_id") or payload.get("label") or ""))) % len(
+                self.GENERATION_LENSES)
+            lens = self.GENERATION_LENSES[offset] if passes > 1 else None
+            out["user"] = prompts.synthesis_user_prompt(
+                payload, self._coverage_targets(), lens=lens,
+                constraints=self._constraint_block())
+            out["cluster"] = {"id": cluster_id, "label": payload["label"],
+                              "signals": len(payload["signals"])}
+            break
+        return out
+
     def _cluster_payload(self, cluster_id: int) -> dict[str, Any]:
         cluster = self.db.query_one("SELECT * FROM clusters WHERE id = ?", (cluster_id,))
         signals = self.db.query(

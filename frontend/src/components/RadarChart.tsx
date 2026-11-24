@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react'
 import type { Topic, VocabItem } from '../types'
 import { formatEur } from './MarketSize'
+import { useIsAdmin } from '../admin'
 
 /** The signature visual (§4.9 Radar view).
  *
@@ -24,6 +25,10 @@ import { formatEur } from './MarketSize'
  *   colour = right-to-win → a MAGNITUDE, so a sequential one-hue ramp. The ramp
  *                          is validated (see theme.css); colour never encodes
  *                          identity here.
+ *
+ * 2026-11-24: size and colour no longer encode anything. Every space is drawn
+ * as the same dot in the same colour — the radar shows WHERE a space sits (SVP
+ * and horizon), not how it scores.
  *
  * SC-12 is preserved visually as well as structurally: the two scores stay on
  * two different channels and are never combined into one mark property.
@@ -63,6 +68,10 @@ const RINGS: { horizon: string; label: string; r: number }[] = [
   { horizon: 'later', label: 'LATER', r: R_MIN + (R_MAX - R_MIN) * 0.95 },
 ]
 
+/** Every mark: one size, one colour. */
+const DOT_RADIUS = 9
+const DOT_FILL = 'var(--rtw-3)'
+
 const RTW_STEPS = ['var(--rtw-1)', 'var(--rtw-2)', 'var(--rtw-3)', 'var(--rtw-4)']
 
 /** Bucket right-to-win onto the four validated ordinal steps.
@@ -94,7 +103,7 @@ export function rtwColor(score: number | null | undefined): string {
  */
 const ATTRACTIVENESS_DOMAIN = [30, 85]
 
-function markRadius(attractiveness: number | null | undefined): number {
+export function markRadius(attractiveness: number | null | undefined): number {
   const value = Math.max(0, Math.min(100, attractiveness ?? 0))
   const [low, high] = ATTRACTIVENESS_DOMAIN
   const normalised = Math.max(0, Math.min(1, (value - low) / (high - low)))
@@ -118,6 +127,7 @@ interface Placed {
 }
 
 export default function RadarChart({ topics, sectors: sectorItems, selectedId, onSelect }: Props) {
+  const isAdmin = useIsAdmin()
   const [hover, setHover] = useState<{ topic: Topic; x: number; y: number } | null>(null)
 
   const sectors = sectorItems.length || 1
@@ -156,13 +166,12 @@ export default function RadarChart({ topics, sectors: sectorItems, selectedId, o
           topic,
           x: CX + Math.cos(angle) * radius,
           y: CY + Math.sin(angle) * radius,
-          r: markRadius(topic.attractiveness?.score),
-          fill: rtwColor(topic.right_to_win?.score),
+          r: DOT_RADIUS,
+          fill: DOT_FILL,
         })
       })
     }
-    // Draw the largest first so small marks land on top and stay clickable.
-    return out.sort((a, b) => b.r - a.r)
+    return out
   }, [topics, sectorItems, sectors, sweep])
 
   return (
@@ -172,7 +181,7 @@ export default function RadarChart({ topics, sectors: sectorItems, selectedId, o
         viewBox={`${-PAD_X} ${-PAD_Y} ${VIEW_W} ${VIEW_H}`}
         style={{ maxWidth: VIEW_W, height: 'auto', display: 'block' }}
         role="img"
-        aria-label="Innovation radar: portfolio SVP by sector, time horizon by distance from centre, attractiveness by marker size, right to win by marker colour."
+        aria-label="Innovation radar: portfolio SVP by sector, time horizon by distance from centre."
       >
         {/* horizon rings */}
         {RINGS.map((ring) => (
@@ -237,7 +246,7 @@ export default function RadarChart({ topics, sectors: sectorItems, selectedId, o
                 strokeWidth={selected ? 2.5 : 2}
                 tabIndex={0}
                 role="button"
-                aria-label={`${p.topic.statement}. Attractiveness ${Math.round(p.topic.attractiveness?.score ?? 0)}, right to win ${Math.round(p.topic.right_to_win?.score ?? 0)}.`}
+                aria-label={`${p.topic.statement}.${p.topic.svp_label ? ` ${p.topic.svp_label}.` : ''} Horizon ${p.topic.horizon ?? 'unknown'}.`}
                 onClick={() => onSelect(p.topic.id)}
                 onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onSelect(p.topic.id) } }}
                 onMouseMove={(e) => setHover({ topic: p.topic, x: e.clientX, y: e.clientY })}
@@ -270,18 +279,14 @@ export default function RadarChart({ topics, sectors: sectorItems, selectedId, o
       {hover && (
         <div className="tooltip" style={{ left: Math.min(hover.x + 14, window.innerWidth - 320), top: hover.y + 14 }}>
           <div className="tt-title">{hover.topic.statement}</div>
-          <div className="tt-row"><span>Attractiveness</span><b>{hover.topic.attractiveness?.score?.toFixed(1) ?? '—'}</b></div>
-          <div className="tt-row"><span>Right to win</span><b>{hover.topic.right_to_win?.score?.toFixed(1) ?? '—'}</b></div>
           {hover.topic.svp_label && (
             <div className="tt-row"><span>SVP</span><b>{hover.topic.svp_label}</b></div>
           )}
           <div className="tt-row"><span>Horizon</span><b>{hover.topic.horizon ?? '—'}</b></div>
           <div className="tt-row"><span>Portfolio distance</span><b>L{hover.topic.portfolio_distance}</b></div>
           <div className="tt-row"><span>Signals</span><b>{hover.topic.signal_count}</b></div>
-          {/* The radar encodes four dimensions in position, size and colour; the
-              two the strategist added last — how big and how contested — had no
-              channel left, so they live here rather than nowhere. */}
-          <div className="tt-row">
+          {/* Market and competition are admin-only, as in the detail pane. */}
+          {isAdmin && <><div className="tt-row">
             <span>Serviceable market</span>
             <b>{hover.topic.market_size_summary
               ? `${formatEur(hover.topic.market_size_summary.sam_base)}/yr`
@@ -292,7 +297,7 @@ export default function RadarChart({ topics, sectors: sectorItems, selectedId, o
             <b className="intensity" data-level={hover.topic.competition?.level ?? 'none'}>
               {hover.topic.competition?.level_label?.toUpperCase() ?? '—'}
             </b>
-          </div>
+          </div></>}
           {hover.topic.has_brief && (
             <div className="tt-row"><span>Sales brief</span><b>ready</b></div>
           )}
@@ -310,17 +315,10 @@ export default function RadarChart({ topics, sectors: sectorItems, selectedId, o
 export function RadarLegend() {
   return (
     <div className="radar-legend">
-      <div className="ramp">
-        <span className="legend-title">Right to win</span>
-        <span style={{ fontSize: 10, color: 'var(--text-muted)' }}>low</span>
-        {RTW_STEPS.map((step) => <i key={step} style={{ background: step }} />)}
-        <span style={{ fontSize: 10, color: 'var(--text-muted)' }}>high</span>
-      </div>
       <div className="size-demo">
-        <span className="legend-title">Attractiveness</span>
-        {[35, 60, 85].map((v) => (
-          <i key={v} style={{ width: markRadius(v) * 2, height: markRadius(v) * 2 }} />
-        ))}
+        <span className="legend-title">Dot</span>
+        <i style={{ width: DOT_RADIUS * 2, height: DOT_RADIUS * 2, background: DOT_FILL }} />
+        one opportunity space
       </div>
       <div><span className="legend-title">Sector</span>portfolio SVP</div>
       {/* Not "Distance": that word already means portfolio distance (L0-L4)

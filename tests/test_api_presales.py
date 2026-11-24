@@ -70,6 +70,9 @@ def client(tmp_path_factory):
     radar.api = importlib.reload(radar.api)
 
     with TestClient(radar.api.app) as test_client:
+        # The planner and generation screens are admin-only.
+        with radar.api._db.cursor() as cur:
+            cur.execute("UPDATE users SET role = 'admin' WHERE username = 'orange'")
         test_client.post("/api/auth/login", json={"username": "orange", "password": "orange"})
         yield test_client
     patch.undo()

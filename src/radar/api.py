@@ -71,6 +71,14 @@ PUBLIC_API_PATHS = frozenset({
 })
 
 
+#: `/api` prefixes only an admin may call. The screens behind them are hidden
+#: from normal users in the frontend; this is what makes that more than cosmetic.
+ADMIN_API_PREFIXES = (
+    "/api/generate", "/api/planner", "/api/analytics", "/api/whitespace",
+    "/api/coverage", "/api/workflow/board", "/api/explore", "/api/taxonomy/watchlist",
+)
+
+
 def require_session(request: Request) -> None:
     """Refuse an `/api` request that carries no valid session.
 
@@ -100,6 +108,8 @@ def require_session(request: Request) -> None:
                             or f"The radar cannot read its session store: {exc}") from exc
     if user is None:
         raise HTTPException(401, "Your session has ended. Sign in to continue.")
+    if path.startswith(ADMIN_API_PREFIXES) and not user.get("is_admin"):
+        raise HTTPException(403, "This screen is only available to administrators.")
     # Endpoints that need to know who is asking read it from here rather than
     # taking a second dependency and a second lookup.
     request.state.user = user
@@ -1678,6 +1688,31 @@ def generation_matching(
         "truncated": len(matched) > limit,
         "topics": [topic_for_list(t) for t in matched[:limit]],
     }
+
+
+@app.post("/api/generate/prompt")
+def generation_prompt(payload: GenerateIn) -> dict[str, Any]:
+    """The full prompt a run with these settings would send to the model.
+
+    Shows the first synthesis call: the system prompt, and the user prompt for
+    the first evidence cluster in run order with the run's constraints applied.
+    Nothing is sent to the model.
+    """
+    from .pipeline.synthesis import Synthesiser
+
+    unknown = [c for c in payload.market_clusters if c not in _cfg.market_clusters]
+    if unknown:
+        raise HTTPException(400, f"Unknown market cluster(s) {unknown}.")
+    constraints = GenerationConstraints.from_dict({
+        "verticals": payload.verticals, "domains": payload.domains, "svps": payload.svps,
+        "geographies": _expand_clusters(payload.geographies, payload.market_clusters),
+        "horizons": payload.horizons,
+    })
+    synth = Synthesiser(_cfg, _db, None, _generation.embedder(),  # type: ignore[arg-type]
+                        constraints=constraints, portfolio_overlap=None)
+    preview = synth.preview_prompt(payload.count)
+    preview["model"] = os.getenv("RADAR_LLM_MODEL_STRONG", "")
+    return preview
 
 
 @app.post("/api/generate")

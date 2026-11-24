@@ -206,6 +206,8 @@ def main(argv: list[str] | None = None) -> int:
     user_add.add_argument("--password", default=None,
                           help="Omit to be prompted, which keeps it out of the shell history")
     user_add.add_argument("--name", default=None, help="Display name")
+    user_add.add_argument("--admin", action="store_true",
+                          help="Give the account the admin role (analysis and generation screens)")
     user_pw = user_sub.add_parser("passwd", help="Change an account's password (ends its sessions)")
     user_pw.add_argument("username")
     user_pw.add_argument("--password", default=None, help="Omit to be prompted")
@@ -638,7 +640,8 @@ def main(argv: list[str] | None = None) -> int:
 
             if args.user_command == "add":
                 password = args.password or _ask(f"Password for {args.username}")
-                created = service.create_user(args.username, password, display_name=args.name)
+                created = service.create_user(args.username, password, display_name=args.name,
+                                              role="admin" if args.admin else "user")
                 print(f"Created {created['username']}")
                 return 0
 

@@ -302,6 +302,10 @@ export const api = {
       horizon: c.horizons,
     }),
 
+  /** The full prompt a run with these settings would send. Nothing is sent. */
+  generationPrompt: (count: number, c: GenerationConstraints) =>
+    post<GenerationPrompt>('/generate/prompt', { count, ...c }),
+
   startGeneration: (count: number, c: GenerationConstraints) =>
     post<GenerationJob>('/generate', { count, ...c }),
 
@@ -372,4 +376,16 @@ export const api = {
     reason?: string
     exposure_context?: Record<string, unknown>
   }) => post<{ stored: boolean; at: string }>('/feedback', payload),
+}
+
+/** What `/api/generate/prompt` returns. */
+export interface GenerationPrompt {
+  system: string
+  user: string | null
+  cluster: { id: number; label: string; signals: number } | null
+  clusters_in_scope: number
+  passes_per_cluster: number
+  lenses: string[]
+  temperature: number
+  model: string
 }

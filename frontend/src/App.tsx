@@ -10,6 +10,7 @@ import { HelpButton, HelpModal } from './components/Help'
 import { countryNames } from './geo'
 import GenerateScreen from './components/Generate'
 import SpaceFullscreen from './components/Fullscreen'
+import { AdminContext } from './admin'
 import PlannerScreen from './components/Planner'
 import ScoreExplainModal from './components/ScoreExplain'
 import HowBuilt from './components/HowBuilt'
@@ -37,6 +38,9 @@ type Tab = 'radar' | 'list' | 'brief' | 'detail' | 'workflow' | 'analytics' | 'e
  *  after them are different questions about the corpus. */
 const RANKED_TABS: readonly Tab[] = ['radar', 'list'] as const
 const OTHER_TABS: readonly Tab[] = ['brief', 'analytics', 'explore', 'whitespace', 'coverage', 'portfolio'] as const
+
+/** Tabs only an admin sees (the server refuses their data to anyone else). */
+const ADMIN_TABS: ReadonlySet<Tab> = new Set<Tab>(['analytics', 'explore', 'whitespace', 'coverage', 'workflow'])
 
 /* `workflow` is in neither: it is still a tab — it renders inside the reading
    layout like the rest — but it is READ beside Generate and Planner, because
@@ -177,7 +181,20 @@ interface RadarProps {
  * than leaving it on screen.
  */
 function RadarApp({ user, minPasswordLength, onSignedOut, onUserChanged }: RadarProps) {
-  const initial = useMemo(initialFromUrl, [])
+  const isAdmin = Boolean(user.is_admin)
+  const initial = useMemo(() => {
+    const from = initialFromUrl()
+    // A shared link to an admin screen opens the radar for a normal user.
+    if (!user.is_admin) {
+      if (from.tab && ADMIN_TABS.has(from.tab)) from.tab = null
+      from.generate = false
+      from.planner = false
+      // Persona and competition filters are admin-only, so a link carrying
+      // them must not filter invisibly.
+      from.filters = { ...from.filters, persona: [], competition: [] }
+    }
+    return from
+  }, [user.is_admin])
   const [meta, setMeta] = useState<Meta | null>(null)
   const [filters, setFilters] = useState<FilterState>(initial.filters)
   const [sort, setSort] = useState<SortId>(initial.sort)
@@ -606,6 +623,7 @@ function RadarApp({ user, minPasswordLength, onSignedOut, onUserChanged }: Radar
   const selectedRank = shown.findIndex((t) => t.id === selected)
 
   return (
+    <AdminContext.Provider value={isAdmin}>
     <div className="app">
       {/* The target is inside the reading layout, which the generator hides —
           a skip link that lands on a hidden element is worse than none. */}
@@ -628,7 +646,7 @@ function RadarApp({ user, minPasswordLength, onSignedOut, onUserChanged }: Radar
             <div className="btn-group" role="group" aria-label="The ranked set">
               {RANKED_TABS.map(tabButton)}
             </div>
-            {OTHER_TABS.map(tabButton)}
+            {OTHER_TABS.filter((t) => isAdmin || !ADMIN_TABS.has(t)).map(tabButton)}
           </div>
 
           <div className="spacer" />
@@ -639,7 +657,7 @@ function RadarApp({ user, minPasswordLength, onSignedOut, onUserChanged }: Radar
               set of them to years. Workflow is still a TAB — it renders in the
               reading layout like the others — but it is read here, because what
               a stage owner does on that board is the same kind of act. */}
-          <div className="btn-group actions" role="group" aria-label="Portfolio">
+          {isAdmin && <div className="btn-group actions" role="group" aria-label="Portfolio">
             <button className="topbtn generate-btn"
                     onClick={() => { setGenerating(true); setFullscreen(false); setPlanner(false) }}
                     aria-pressed={generating} aria-label="Generate"
@@ -662,7 +680,7 @@ function RadarApp({ user, minPasswordLength, onSignedOut, onUserChanged }: Radar
               <IconCalendar className="btn-icon" />
               <TopLabel text="Planner" />
             </button>
-          </div>
+          </div>}
 
           <button className="topbtn icon-only"
                   onClick={() => setTheme(theme === 'dark' ? 'light' : theme === 'light' ? 'auto' : 'dark')}
@@ -1415,8 +1433,8 @@ function RadarApp({ user, minPasswordLength, onSignedOut, onUserChanged }: Radar
             )}
             <span className="spacer" />
             <span style={{ fontSize: 10.5, color: 'var(--text-muted)' }}>Help</span>
-            <HelpButton topic="attractiveness" onOpen={setHelp} label="A" />
-            <HelpButton topic="right_to_win" onOpen={setHelp} label="W" />
+            {isAdmin && <HelpButton topic="attractiveness" onOpen={setHelp} label="A" />}
+            {isAdmin && <HelpButton topic="right_to_win" onOpen={setHelp} label="W" />}
             <HelpButton topic="conviction" onOpen={setHelp} label="C" />
             <HelpButton topic="portfolio_distance" onOpen={setHelp} label="L" />
           </div>
@@ -1445,6 +1463,7 @@ function RadarApp({ user, minPasswordLength, onSignedOut, onUserChanged }: Radar
         weights={{ attractiveness: meta.attractiveness_weights, right_to_win: meta.right_to_win_weights }}
         onClose={() => setExplaining(null)} />
     </div>
+    </AdminContext.Provider>
   )
 }
 

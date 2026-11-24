@@ -11,6 +11,7 @@ import {
   SECTION_ICONS,
 } from './Icons'
 import { rtwColor } from './RadarChart'
+import { useIsAdmin } from '../admin'
 import MarketSizePanel, { formatEur } from './MarketSize'
 import CompetitionPanel from './Competition'
 import DescriptionPanel from './Description'
@@ -92,6 +93,9 @@ function dedupeClaims(claims: { claim: string; signals: string[] }[]) {
   return [...byKey.values()]
 }
 
+/** Sections shown only to admins: the scores and the market figures. */
+const ADMIN_SECTIONS = new Set(['market', 'competition', 'score'])
+
 const SECTIONS: { id: string; label: string }[] = [
   { id: 'why-hot', label: 'Why now' },
   { id: 'market', label: 'Market' },
@@ -108,6 +112,7 @@ const SECTIONS: { id: string; label: string }[] = [
 ]
 
 export default function TopicDetail({ topicId, meta, rank, workflowMeta, onChanged, refreshKey, onHelp, onExplain, onOpenBrief, onDeleted }: Props) {
+  const isAdmin = useIsAdmin()
   const [topic, setTopic] = useState<Topic | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [rated, setRated] = useState<string | null>(null)
@@ -220,7 +225,7 @@ export default function TopicDetail({ topicId, meta, rank, workflowMeta, onChang
           here" were at screens 4, 6 and 5 of 10. This is a summary, not a
           substitute: every figure links to the section that derives it, and
           SC-12 still holds — four numbers side by side, never combined. */}
-      <dl className="headline-strip">
+      {isAdmin && <dl className="headline-strip">
         <div>
           <dt>Attractiveness</dt>
           <dd><button className="headline-link" onClick={() => jumpTo('score')}>
@@ -259,7 +264,7 @@ export default function TopicDetail({ topicId, meta, rank, workflowMeta, onChang
               : 'not assessed'}
           </dd>
         </div>
-      </dl>
+      </dl>}
 
       {topic.next_action && (
         <div className="action-card action-lead">
@@ -272,7 +277,7 @@ export default function TopicDetail({ topicId, meta, rank, workflowMeta, onChang
         {/* The same mark on the jump entry and on the heading it lands on. A
             jump bar whose entries look nothing like their destinations is a
             second vocabulary to learn. */}
-        {SECTIONS.map((section) => {
+        {SECTIONS.filter((section) => isAdmin || !ADMIN_SECTIONS.has(section.id)).map((section) => {
           const Icon = SECTION_ICONS[section.id]
           return (
             <button key={section.id} onClick={() => jumpTo(section.id)}>
@@ -335,6 +340,7 @@ export default function TopicDetail({ topicId, meta, rank, workflowMeta, onChang
       </div>
 
       {/* --- market size (§4.3.4): the working, not just the number --- */}
+      {isAdmin && <>
       <div className="detail-section" id="section-market">
         <h4><IconMoney />Market opportunity{onHelp && <HelpButton topic="market_size" onOpen={onHelp} />}</h4>
         <MarketSizePanel sizes={topic.market_size ?? []} onHelp={onHelp} />
@@ -345,6 +351,7 @@ export default function TopicDetail({ topicId, meta, rank, workflowMeta, onChang
         <h4><IconVenn />Competition{onHelp && <HelpButton topic="competition" onOpen={onHelp} />}</h4>
         <CompetitionPanel competition={topic.competition} onHelp={onHelp} />
       </div>
+      </>}
 
       {/* --- what to ask, and what you will be asked back (FR-17, AC-03) ---
               Generated with the description, surfaced separately: a question you
@@ -394,7 +401,8 @@ export default function TopicDetail({ topicId, meta, rank, workflowMeta, onChang
             ? [topic.svp_label + (topic.svp_value_proposition ? ` — ${topic.svp_value_proposition}` : '')]
             : []],
           ['Business domain', topic.domain_labels],
-          ['Who signs', topic.persona_labels],
+          // Persona ("who signs") is admin-only.
+          ...(isAdmin ? [['Who signs', topic.persona_labels]] : []),
           /* The cluster sits above the country codes because it is the unit the
              business plans in, and because it is derived from them: showing the
              reading before the raw codes lets a reader check one against the
@@ -473,7 +481,7 @@ export default function TopicDetail({ topicId, meta, rank, workflowMeta, onChang
       </div>
 
       {/* --- score breakdown, expanded (NFR-01, §4.9) --- */}
-      <div className="detail-section" id="section-score">
+      {isAdmin && <div className="detail-section" id="section-score">
         <h4><IconGauge />Score breakdown{onHelp && <HelpButton topic="attractiveness" onOpen={onHelp} />}</h4>
         <ScoreBreakdown title="Attractiveness" block={topic.attractiveness} weights={meta.attractiveness_weights} />
         <ScoreBreakdown title="Right to win" block={topic.right_to_win} weights={meta.right_to_win_weights} />
@@ -486,7 +494,7 @@ export default function TopicDetail({ topicId, meta, rank, workflowMeta, onChang
           Attractiveness and right to win answer different questions, so they are never combined
           into a single number.
         </div>
-      </div>
+      </div>}
 
       {/* --- horizon derivation (FR-08) --- */}
       <div className="detail-section">

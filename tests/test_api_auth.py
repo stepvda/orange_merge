@@ -222,3 +222,28 @@ def test_a_rejected_password_says_which_rule_it_broke(client, account):
                            json={"current_password": password, "new_password": "short"})
     assert response.status_code == 400
     assert "8 characters" in response.json()["detail"]
+
+
+# --- admin role (2026-11-24) -------------------------------------------------
+
+
+def test_a_normal_user_is_refused_the_admin_screens(client, account):
+    name, password = account
+    sign_in(client, name, password)
+    assert client.get("/api/auth/session").json()["user"]["is_admin"] is False
+    for path in ("/api/generate/options", "/api/analytics/summary", "/api/planner/meta",
+                 "/api/coverage", "/api/workflow/board", "/api/explore/scores"):
+        assert client.get(path).status_code == 403, path
+    # The radar itself stays open.
+    assert client.get("/api/meta").status_code == 200
+
+
+def test_an_admin_reaches_the_admin_screens(client):
+    from radar.api import _auth
+    _auth.create_user("boss", "boss-password", role="admin")
+    try:
+        sign_in(client, "boss", "boss-password")
+        assert client.get("/api/auth/session").json()["user"]["is_admin"] is True
+        assert client.get("/api/generate/options").status_code == 200
+    finally:
+        _auth.delete_user("boss")

@@ -933,6 +933,9 @@ export interface User {
   must_change_password: boolean
   last_login_at: string | null
   password_changed_at: string | null
+  /** 'admin' or 'user'. */
+  role?: string
+  is_admin?: boolean
 }
 
 export interface SessionInfo {

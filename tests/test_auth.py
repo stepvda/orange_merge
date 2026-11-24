@@ -248,4 +248,4 @@ def test_a_weaker_stored_hash_is_upgraded_on_the_next_sign_in(service, db, monke
 def test_no_hash_ever_reaches_a_caller(service):
     _, user = service.login(DEFAULT_USERNAME, DEFAULT_PASSWORD)
     assert set(user) == {"username", "display_name", "must_change_password",
-                         "last_login_at", "password_changed_at"}
+                         "last_login_at", "password_changed_at", "role", "is_admin"}
