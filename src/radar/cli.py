@@ -17,6 +17,7 @@
     radar size                  compute market size per opportunity space (§4.3.4)
     radar competition           assess competitive intensity per space (§4.3.3)
     radar describe              generate long-form descriptions (FR-14, FR-18)
+    radar rewrite propose|apply sharpen existing titles, merge duplicates (review in Excel)
     radar brief OS001           render the sales/presales PDF brief (FR-18)
     radar serve                 run the read API for the React frontend
 """
@@ -29,6 +30,7 @@ import json
 import logging
 import os
 import sys
+from pathlib import Path
 
 from .config import get_config
 from .db import Database
@@ -189,6 +191,16 @@ def main(argv: list[str] | None = None) -> int:
     describe.add_argument("--limit", type=int, default=None, help="Stop after this many topics")
     describe.add_argument("--force", action="store_true", help="Regenerate even if current")
     describe.add_argument("--provider", default=None)
+
+    rewrite = sub.add_parser("rewrite", help="Sharpen the titles of existing spaces and merge duplicates "
+                                                "(propose to an Excel for review, then apply)")
+    rewrite.add_argument("action", choices=["propose", "apply"])
+    rewrite.add_argument("--file", default="data/rewrite_review.xlsx",
+                         help="Review file written by propose and read by apply")
+    rewrite.add_argument("--topics", default=None, help="Comma-separated topic ids (propose only)")
+    rewrite.add_argument("--no-describe", action="store_true",
+                         help="apply: do not write the descriptions afterwards")
+    rewrite.add_argument("--provider", default=None)
 
     brief = sub.add_parser("brief", help="Render the sales/presales PDF brief (FR-18)")
     brief.add_argument("topic_id", nargs="?", default=None)
@@ -494,6 +506,25 @@ def main(argv: list[str] | None = None) -> int:
             limit=args.limit, force=args.force,
         )
         print(json.dumps(stats, indent=2))
+        return 0
+
+    if args.command == "rewrite":
+        if getattr(args, "provider", None):
+            import os
+            os.environ["RADAR_LLM_PROVIDER"] = args.provider
+        from .pipeline.rewrite import StatementRewriter
+        rewriter = StatementRewriter(cfg, db, LLMClient(max_retries=cfg.settings["llm"]["max_retries"]))
+        if args.action == "propose":
+            result = rewriter.propose(
+                topic_ids=[t.strip() for t in args.topics.split(",")] if args.topics else None)
+            path = rewriter.write_review(result, Path(args.file))
+            counts: dict[str, int] = {}
+            for r in result["rewrites"]:
+                counts[r["status"]] = counts.get(r["status"], 0) + 1
+            print(json.dumps({"review_file": str(path), "spaces": len(result["rewrites"]),
+                              "by_status": counts, "merge_suggestions": len(result["merges"])}, indent=2))
+            return 0
+        print(json.dumps(rewriter.apply(Path(args.file), describe=not args.no_describe), indent=2))
         return 0
 
     if args.command == "brief":

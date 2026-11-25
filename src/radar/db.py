@@ -143,7 +143,14 @@ CREATE TABLE IF NOT EXISTS opportunity_spaces (
     pipeline_version TEXT NOT NULL,
     prompt_version  TEXT,
     model_version   TEXT,
-    merged_into     TEXT REFERENCES opportunity_spaces(id)
+    merged_into     TEXT REFERENCES opportunity_spaces(id),
+    -- The parts the title is built from (2026-11-25). why_now and who_signs
+    -- are the subtitle under every title; the rest feed the critic and briefs.
+    buyer           TEXT,
+    why_now         TEXT,
+    outcome         TEXT,
+    orange_angle    TEXT,
+    who_signs       TEXT
 );
 -- Canonical identity: two candidates with the same triple are the same topic.
 CREATE UNIQUE INDEX IF NOT EXISTS idx_os_triple
@@ -730,6 +737,12 @@ MIGRATIONS: list[tuple[str, str, str]] = [
     ("plans", "pdf_schema", "TEXT"),
     # Admin vs normal user (2026-11-24).
     ("users", "role", "TEXT NOT NULL DEFAULT 'user'"),
+    # Title parts and subtitle (2026-11-25).
+    ("opportunity_spaces", "buyer", "TEXT"),
+    ("opportunity_spaces", "why_now", "TEXT"),
+    ("opportunity_spaces", "outcome", "TEXT"),
+    ("opportunity_spaces", "orange_angle", "TEXT"),
+    ("opportunity_spaces", "who_signs", "TEXT"),
 ]
 
 

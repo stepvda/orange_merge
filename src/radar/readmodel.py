@@ -286,6 +286,13 @@ class ReadModel:
                 "technology": self.cfg.technologies.label(topic["technology"]),
             },
             "statement": topic["statement"],
+            # Subtitle (2026-11-25): why now and who signs, under every title.
+            # .get() because a row read before the migration has no such keys.
+            "why_now": _col(topic, "why_now"),
+            "who_signs": _col(topic, "who_signs"),
+            "buyer": _col(topic, "buyer"),
+            "outcome": _col(topic, "outcome"),
+            "orange_angle": _col(topic, "orange_angle"),
             "domains": unjs(topic["domains"], []),
             "domain_labels": [self.cfg.domains.label(d) for d in unjs(topic["domains"], []) or []],
             # Portfolio SVP (radar sector, SVP filter) — radar.svp.
@@ -624,6 +631,14 @@ class ReadModel:
 #: /api/topics/{id}, which is where they are read (§4.9 puts the decomposition
 #: on the topic page, not in the list). `next_action` stays: the CLI's topic
 #: list prints it.
+def _col(row: Any, name: str) -> str | None:
+    """A column that may not exist on an old row (sqlite3.Row or dict)."""
+    try:
+        return row[name]
+    except (KeyError, IndexError):
+        return None
+
+
 _DETAIL_ONLY_FIELDS = ("links", "why_hot", "reference_density",
                        "provenance", "state_reason", "horizon_basis")
 

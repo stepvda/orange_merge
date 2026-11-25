@@ -48,6 +48,7 @@ from .embeddings import Embedder
 from .graph import Linker
 from .llm import LLMClient
 from .pipeline.actions import NextActionGenerator
+from .pipeline.describe import DescriptionGenerator
 from .pipeline.enrich import Enricher
 from . import scouting
 from .pipeline.synthesis import (GenerationConstraints, SynthesisProgress, SynthesisStats,
@@ -90,10 +91,9 @@ MAX_BRIEFS_PER_RUN = 5
 HISTORY_LIMIT = 20
 
 #: The stages a generated space passes through after synthesis, in order, with
-#: the label the screen shows. `describe` is deliberately NOT here: a long-form
-#: description is one more model call per space, the detail pane already
-#: generates it on demand (FR-14), and making it part of every run would double
-#: the cost of the cheap case to serve the occasional one.
+#: the label the screen shows. `describe` was left out until 2026-11-25 to save
+#: one model call per space; it is now part of every run so the detail pane
+#: never has to wait for a description to be written when a space is opened.
 STAGE_LABELS: tuple[tuple[str, str], ...] = (
     ("research", "Searching for new evidence"),
     ("synthesise", "Synthesising candidates"),
@@ -103,6 +103,7 @@ STAGE_LABELS: tuple[tuple[str, str], ...] = (
     ("actions", "Writing the next action"),
     ("size", "Sizing the market"),
     ("competition", "Reading the competitive field"),
+    ("describe", "Writing the detailed description"),
 )
 
 
@@ -559,6 +560,19 @@ class GenerationService:
             # over an empty result.
             if job.created_ids:
                 self._finish_topics(job, llm, reference_date)
+            elif job.updated_ids and not job.cancelled:
+                # Nothing new, but existing spaces took new evidence: their
+                # descriptions are stale, and the detail pane should not have
+                # to write them when someone opens the space.
+                job.say("No new spaces were created. Rewriting the descriptions of the "
+                        f"{len(job.updated_ids)} space(s) that took new evidence…")
+                job.stage = "describe"
+                try:
+                    job.stats["describe"] = self._describe(llm, job.updated_ids)
+                    job.stages_done.append("describe")
+                except Exception as exc:  # noqa: BLE001 — the spaces are fine without it
+                    job.stats["describe"] = {"error": f"{type(exc).__name__}: {exc}"}
+                    job.say(f"Writing descriptions failed ({exc}); they will be written on the next refresh.")
             else:
                 job.say("No new spaces were created, so the downstream stages have nothing to do.")
 
@@ -629,6 +643,15 @@ class GenerationService:
                         f"{len(part.updated_ids)} refreshed.")
         return combined
 
+    def _describe(self, llm: LLMClient, ids: list[str]) -> dict[str, Any]:
+        """Write the detailed description of each space whose description is
+        missing or stale, so it is ready before anyone opens the space."""
+        ids = list(dict.fromkeys(ids))
+        if not ids:
+            return {"considered": 0, "generated": 0}
+        return DescriptionGenerator(self.cfg, self.db, llm).run(
+            topic_ids=ids, max_workers=int((self.cfg.settings.get("description") or {}).get("max_parallel", 4)))
+
     def _finish_topics(self, job: GenerationJob, llm: LLMClient, reference_date: dt.date) -> None:
         """Take the new spaces from `candidate` to something worth opening.
 
@@ -647,6 +670,12 @@ class GenerationService:
             ("actions", lambda: NextActionGenerator(self.cfg, self.db, llm).run(topic_ids=ids)),
             ("size", lambda: MarketSizer(self.cfg, self.db).run(topic_ids=ids)),
             ("competition", lambda: CompetitionAnalyser(self.cfg, self.db).run(topic_ids=ids)),
+            # Last: the description names the assets, the competitors and the
+            # evidence the earlier stages attached.
+            # Also the spaces this run REFRESHED: new evidence moved their
+            # version on, so their description went stale. Only stale ones
+            # are written; a current description costs nothing.
+            ("describe", lambda: self._describe(llm, ids + job.updated_ids)),
         )
         for name, step in steps:
             if job.cancelled:

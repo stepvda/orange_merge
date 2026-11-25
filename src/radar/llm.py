@@ -205,6 +205,12 @@ class LLMClient:
             payload = {"items": []}
         elif "MOCK_KIND=synthesis" in system:
             payload = {"candidates": []}
+        elif "MOCK_KIND=sharpen" in system or "MOCK_KIND=rewrite" in system:
+            # No rewrite: the deterministic title rules then decide on the
+            # original wording, which is what the tests exercise.
+            payload = {}
+        elif "MOCK_KIND=same_opportunity" in system:
+            payload = {"same": False, "reason": "mock"}
         elif "MOCK_KIND=critic" in system:
             payload = {"score": 3, "verdict": "revise", "notes": "mock", "issues": []}
         elif "MOCK_KIND=relevance" in system:

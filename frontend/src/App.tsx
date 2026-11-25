@@ -3,6 +3,7 @@ import BriefView from './components/Brief'
 import Filters from './components/Filters'
 import RadarChart, { RadarLegend, rtwColor } from './components/RadarChart'
 import SvpBadge from './components/SvpBadge'
+import { LabelChips, TopicSubtitle } from './components/TopicSubtitle'
 import TopicDetail from './components/TopicDetail'
 import { Board, type BoardData, type WorkflowMeta } from './components/Workflow'
 import { BarList, ChartCard, DivergenceChart, Heatmap, Kpi, StackedBar, StageFunnel } from './components/Charts'
@@ -41,6 +42,8 @@ const OTHER_TABS: readonly Tab[] = ['brief', 'analytics', 'explore', 'whitespace
 
 /** Tabs only an admin sees (the server refuses their data to anyone else). */
 const ADMIN_TABS: ReadonlySet<Tab> = new Set<Tab>(['analytics', 'explore', 'whitespace', 'coverage', 'workflow'])
+/** Orders named after scores that only admins see. */
+const ADMIN_SORTS: ReadonlySet<string> = new Set(['attractiveness', 'right_to_win', 'market_size', 'competition'])
 
 /* `workflow` is in neither: it is still a tab — it renders inside the reading
    layout like the rest — but it is READ beside Generate and Planner, because
@@ -192,6 +195,10 @@ function RadarApp({ user, minPasswordLength, onSignedOut, onUserChanged }: Radar
       // Persona and competition filters are admin-only, so a link carrying
       // them must not filter invisibly.
       from.filters = { ...from.filters, persona: [], competition: [] }
+      // Score-based orders are admin-only; fall back to the default order.
+      if (ADMIN_SORTS.has(from.sort)) from.sort = 'attractiveness'
+      // The score explanation is admin-only too.
+      from.explain = null
     }
     return from
   }, [user.is_admin])
@@ -602,9 +609,15 @@ function RadarApp({ user, minPasswordLength, onSignedOut, onUserChanged }: Radar
       <span>Order</span>
       <select value={sort} onChange={(e) => setSort(e.target.value as SortId)}
               title="Changes the order of the spaces. Every matching space is always shown.">
-        {(meta.sorts ?? [{ id: 'attractiveness' as SortId, label: 'Highest attractiveness' }]).map((option) => (
-          <option key={option.id} value={option.id}>{option.label}</option>
-        ))}
+        {(meta.sorts ?? [{ id: 'attractiveness' as SortId, label: 'Highest attractiveness' }])
+          // Non-admins never see the scores, so the score-based orders are not
+          // named; the default order stays, labelled neutrally.
+          .filter((option) => isAdmin || !ADMIN_SORTS.has(option.id) || option.id === 'attractiveness')
+          .map((option) => (
+            <option key={option.id} value={option.id}>
+              {!isAdmin && option.id === 'attractiveness' ? 'Recommended' : option.label}
+            </option>
+          ))}
       </select>
     </label>
   )
@@ -880,7 +893,7 @@ function RadarApp({ user, minPasswordLength, onSignedOut, onUserChanged }: Radar
                 <span className="spacer" />
                 <button className="btn" disabled={shown.length === 0}
                         title="Download the spaces shown here as CSV, in this order"
-                        onClick={() => downloadCsv(shown)}>CSV</button>
+                        onClick={() => downloadCsv(shown, isAdmin)}>CSV</button>
                 {sortControl}
               </div>
               <div className="panel-body" style={{ padding: 8 }}>
@@ -901,9 +914,10 @@ function RadarApp({ user, minPasswordLength, onSignedOut, onUserChanged }: Radar
                               aria-pressed={selected === topic.id}>
                         <p className="topic-statement">{topic.statement}</p>
                       </button>
+                      <TopicSubtitle topic={topic} />
                       <div className="topic-triple">
                         <SvpBadge topic={topic} />
-                        {topic.labels.vertical} × {topic.labels.use_case} × {topic.labels.technology}
+                        <LabelChips labels={topic.labels} />
                         {' · '}{topic.signal_count} signals
                         {/* The cluster, not the country codes: three ISO pairs on a
                             list row is noise, and the grouping is what the reader
@@ -949,15 +963,18 @@ function RadarApp({ user, minPasswordLength, onSignedOut, onUserChanged }: Radar
                       </div>
                     </div>
                     <div className="topic-scores">
-                      <span className="score-pill" title="Attractiveness">A {topic.attractiveness?.score?.toFixed(0) ?? '—'}</span>
-                      <span className="score-pill" title="Right to win"
-                            style={{ borderColor: rtwColor(topic.right_to_win?.score) }}>
-                        W {topic.right_to_win?.score?.toFixed(0) ?? '—'}
-                      </span>
-                      <button className="help-btn"
-                              aria-label={`How ${topic.id}'s score was calculated`}
-                              title="How was this calculated?"
-                              onClick={(e) => { e.stopPropagation(); openExplain(topic.id) }}>=</button>
+                      {/* Attractiveness and right to win are admin-only. */}
+                      {isAdmin && <>
+                        <span className="score-pill" title="Attractiveness">A {topic.attractiveness?.score?.toFixed(0) ?? '—'}</span>
+                        <span className="score-pill" title="Right to win"
+                              style={{ borderColor: rtwColor(topic.right_to_win?.score) }}>
+                          W {topic.right_to_win?.score?.toFixed(0) ?? '—'}
+                        </span>
+                        <button className="help-btn"
+                                aria-label={`How ${topic.id}'s score was calculated`}
+                                title="How was this calculated?"
+                                onClick={(e) => { e.stopPropagation(); openExplain(topic.id) }}>=</button>
+                      </>}
                       {/* Two glyphs, not one glyph in two colours: "a brief exists"
                           is a fact a colourblind reader needs too. */}
                       <button className={`help-btn${topic.has_brief ? ' ready' : ''}`}
@@ -1039,9 +1056,10 @@ function RadarApp({ user, minPasswordLength, onSignedOut, onUserChanged }: Radar
                               onClick={(e) => { e.stopPropagation(); setSelected(topic.id) }}>
                         <p className="topic-statement">{topic.statement}</p>
                       </button>
+                      <TopicSubtitle topic={topic} />
                       <div className="topic-triple">
                         <SvpBadge topic={topic} />
-                        {topic.labels.vertical} × {topic.labels.use_case} × {topic.labels.technology}
+                        <LabelChips labels={topic.labels} />
                         {topic.market_cluster_labels.length > 0
                           && ` · ${topic.market_cluster_labels.join(', ')}`}
                       </div>
@@ -1542,9 +1560,11 @@ export default function App() {
 /** CSV export of the ranked list (ported from innovation_radar_orange's
  *  "download" button). Exactly the rows on screen, in their order, so the file
  *  answers "what was I looking at" rather than "what is in the database". */
-function downloadCsv(topics: Topic[]) {
-  const cols: [string, (t: Topic) => unknown][] = [
+function downloadCsv(topics: Topic[], isAdmin: boolean) {
+  const adminOnly = new Set(['attractiveness', 'right_to_win'])
+  const allCols: [string, (t: Topic) => unknown][] = [
     ['id', (t) => t.id], ['statement', (t) => t.statement],
+    ['why_now', (t) => t.why_now ?? ''], ['who_signs', (t) => t.who_signs ?? ''],
     ['vertical', (t) => t.labels.vertical], ['use_case', (t) => t.labels.use_case],
     ['technology', (t) => t.labels.technology], ['svp', (t) => t.svp_label ?? ''],
     ['domains', (t) => t.domain_labels.join('; ')],
@@ -1554,6 +1574,7 @@ function downloadCsv(topics: Topic[]) {
     ['geographies', (t) => t.geographies.join('; ')], ['first_seen', (t) => t.first_seen],
     ['last_refresh', (t) => t.last_refresh],
   ]
+  const cols = allCols.filter(([h]) => isAdmin || !adminOnly.has(h))
   const esc = (v: unknown) => {
     const text = String(v ?? '')
     return /[",\n;]/.test(text) ? `"${text.replace(/"/g, '""')}"` : text

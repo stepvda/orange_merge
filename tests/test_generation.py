@@ -677,7 +677,7 @@ def test_research_does_not_count_toward_the_finishing_stages(cfg, db):
     job = GenerationJob(id="G-r2", requested=1, constraints=GenerationConstraints(),
                         kind="brief", briefs=["x" * 60], research=True)
     job.stages_done = ["research", "synthesise", "enrich", "link", "score",
-                       "actions", "size", "competition"]
+                       "actions", "size", "competition", "describe"]
     assert job.progress == 1.0
 
 
@@ -718,7 +718,7 @@ def test_the_finishing_stages_take_the_bar_the_rest_of_the_way(cfg, db):
     after_synthesis = job.progress
     job.stages_done.extend(["enrich", "link", "score"])
     assert after_synthesis < job.progress < 1.0
-    job.stages_done.extend(["actions", "size", "competition"])
+    job.stages_done.extend(["actions", "size", "competition", "describe"])
     assert job.progress == pytest.approx(1.0)
 
 

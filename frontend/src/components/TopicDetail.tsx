@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { LabelChips, TopicSubtitle } from './TopicSubtitle'
 import { api } from '../api'
 import ConfirmDelete from './ConfirmDelete'
 import type { Meta, Topic } from '../types'
@@ -215,9 +216,17 @@ export default function TopicDetail({ topicId, meta, rank, workflowMeta, onChang
       </div>
 
       <p className="detail-statement">{topic.statement}</p>
+      <TopicSubtitle topic={topic} />
       <div className="topic-triple">
-        {topic.labels.vertical} × {topic.labels.use_case} × {topic.labels.technology}
+        <LabelChips labels={topic.labels} />
       </div>
+      {(topic.buyer || topic.outcome || topic.orange_angle) && (
+        <dl className="title-parts">
+          {topic.buyer && <><dt>Buyer</dt><dd>{topic.buyer}</dd></>}
+          {topic.outcome && <><dt>Outcome</dt><dd>{topic.outcome}</dd></>}
+          {topic.orange_angle && <><dt>Orange's angle</dt><dd>{topic.orange_angle}</dd></>}
+        </dl>
+      )}
 
       {/* The four quantities, above the fold.
           §4.9 asks the pane to answer questions in the order they arrive, and it

@@ -36,6 +36,7 @@ from ..embeddings import Embedder
 from ..llm import LLMClient
 from ..portfolio_overlap import PortfolioOverlap
 from . import prompts
+from . import specificity
 
 log = logging.getLogger(__name__)
 
@@ -207,10 +208,24 @@ class Candidate:
     geographies: list[str] = field(default_factory=list)
     why_hot: list[dict[str, Any]] = field(default_factory=list)
     why_specific: str = ""
+    #: The parts the title is built from (2026-11-25). `why_now` and
+    #: `who_signs` are the subtitle the list shows under every title.
+    buyer: str = ""
+    why_now: str = ""
+    outcome: str = ""
+    orange_angle: str = ""
+    who_signs: str = ""
     cluster_id: int | None = None
     critic_score: int | None = None
     critic_notes: str = ""
     rejection: str | None = None
+    #: Set by `_deduplicate` when the candidate is the same opportunity as a
+    #: space already on the radar: its evidence attaches to that space instead
+    #: of creating a new one.
+    merge_into: str | None = None
+    #: Set when an EXISTING space is being re-judged (pipeline.rewrite), so its
+    #: own old title is not offered to the critic as a neighbour.
+    existing_id: str | None = None
 
     @property
     def triple(self) -> tuple[str, str, str]:
@@ -250,6 +265,13 @@ class SynthesisStats:
     #: an occupied cell. NFR-10 makes inference cost a reported quantity, and
     #: this is the one loop that can spend more than the plan implies.
     duplicate_retries: int = 0
+    #: Titles sent back once by the deterministic title rules (specificity.py).
+    sharpened: int = 0
+    #: Candidates that turned out to be a space already on the radar, reworded:
+    #: their evidence attached to that space instead.
+    merged_into_existing: int = 0
+    #: New spaces dropped by the per-technology cap of one run.
+    capped_by_technology: int = 0
     rounds: int = 1
     rejections: list[dict[str, str]] = field(default_factory=list)
     #: DR-03 makes "updated" and "created" different events, and the Generate
@@ -269,7 +291,7 @@ class SynthesisStats:
     _SUMMED = ("clusters_processed", "raw_candidates", "failed_vocabulary", "failed_specificity",
                "failed_evidence", "failed_critic", "merged_duplicates", "accepted",
                "entailment_stripped", "failed_constraints", "failed_portfolio", "duplicate_of_existing",
-               "duplicate_retries")
+               "duplicate_retries", "sharpened", "merged_into_existing", "capped_by_technology")
 
     def absorb(self, other: "SynthesisStats") -> "SynthesisStats":
         """Fold another pass into this one — for a run made of several briefs.
@@ -334,6 +356,15 @@ class Synthesiser:
         self.max_chars = int(cur["statement_max_chars"])
         self.banned = {b.lower() for b in cur["banned_generic_statements"]}
         self.dup_threshold = float(cur["duplicate_similarity_threshold"])
+        self.judge_floor = float(cur.get("duplicate_judge_floor", self.dup_threshold))
+        self.max_new_per_technology = int(cur.get("max_new_per_technology", 0) or 0)
+        self.spec_settings = dict(cur.get("specificity") or {})
+        self.spec_enabled = bool(self.spec_settings.get("enabled", True))
+        self._tech_phrases: list[str] | None = None
+        #: Statements and embeddings of every space on the radar, read once per
+        #: run (the critic's neighbours and the cross-radar dedup both use it).
+        self._corpus: tuple[list[dict[str, Any]], Any] | None = None
+        self._corpus_lock = threading.Lock()
         self.critic_min = int(cur["critic_min_score"])
         self.temperature = float(cfg.settings["llm"]["temperature_synthesis"])
         self.critic_temperature = float(cfg.settings["llm"]["temperature_critic"])
@@ -570,16 +601,19 @@ class Synthesiser:
 
                 for candidate in candidates:
                     candidate.cluster_id = cluster_id
+                    # Title rules first: a model call, so outside the lock.
+                    if not self._sharpen(candidate, payload, stats, lock):
+                        continue
                     with lock:
                         ok = self._validate(candidate, valid_ids, stats)
                     if not ok:
                         continue
                     if run_critic:
-                        # The critic compares against neighbouring candidates, so
-                        # it reads the shared accepted list — a snapshot is enough
-                        # and avoids holding the lock across a model call.
+                        # The critic compares against the closest spaces on the
+                        # radar and in this batch — a snapshot of the batch is
+                        # enough and avoids holding the lock across a model call.
                         with lock:
-                            neighbours = list(accepted[-8:])
+                            neighbours = list(accepted)
                         if not self._criticise(candidate, payload, neighbours, stats, lock):
                             continue
                     if run_entailment:
@@ -639,7 +673,7 @@ class Synthesiser:
             list(pool.map(process, clusters))
 
         # Near-duplicate merge across the whole batch (§4.4.5).
-        deduped = self._deduplicate(accepted, stats)
+        deduped = self._against_radar(self._deduplicate(accepted, stats), stats)
         self._persist(deduped, refresh_id, stats)
         stats.accepted = len(deduped)
         if tick:
@@ -778,6 +812,8 @@ class Synthesiser:
         for candidate in candidates:
             if cancelled and cancelled():
                 break
+            if not self._sharpen(candidate, payload, stats):
+                continue
             if not self._validate(candidate, valid_ids, stats):
                 continue
             if run_critic and not self._criticise(candidate, payload, survivors, stats):
@@ -795,7 +831,7 @@ class Synthesiser:
         # ranked by the critic's own score, so what persists is the best reading
         # of the brief the evidence supports rather than the first one produced.
         survivors.sort(key=lambda c: (c.critic_score or 0), reverse=True)
-        chosen = survivors[:1]
+        chosen = self._against_radar(survivors[:1], stats)
         self._persist(chosen, refresh_id, stats)
         stats.accepted = len(chosen)
         if tick:
@@ -1191,6 +1227,11 @@ class Synthesiser:
                         geographies=[str(g).upper() for g in entry.get("geographies") or []],
                         why_hot=[c for c in entry.get("why_hot") or [] if isinstance(c, dict)],
                         why_specific=str(entry.get("why_specific", "")).strip(),
+                        buyer=str(entry.get("buyer") or "").strip(),
+                        why_now=str(entry.get("why_now") or "").strip(),
+                        outcome=str(entry.get("outcome") or "").strip(),
+                        orange_angle=str(entry.get("orange_angle") or "").strip(),
+                        who_signs=str(entry.get("who_signs") or "").strip(),
                     )
                 )
             except (TypeError, ValueError):
@@ -1348,25 +1389,130 @@ class Synthesiser:
             return False
         return True
 
+    # -- stage 6a': title rules (specificity.py) ------------------------------
+
+    def _lint(self, candidate: Candidate) -> list[str]:
+        if self._tech_phrases is None:
+            self._tech_phrases = specificity.technology_phrases(self.cfg)
+        return specificity.lint(candidate.statement, buyer=candidate.buyer, why_now=candidate.why_now,
+                                who_signs=candidate.who_signs, tech_phrases=self._tech_phrases,
+                                settings=self.spec_settings).issues
+
+    def _sharpen(self, candidate: Candidate, payload: dict[str, Any], stats: SynthesisStats,
+                 lock: "threading.Lock | None" = None) -> bool:
+        """Deterministic title rules; one rewrite by the model, then drop.
+
+        Rules, not judgement: a technology-first title, a hedge, stacked filler
+        or a missing buyer / why-now / who-signs cannot be argued past.
+        """
+        if not self.spec_enabled:
+            return True
+        issues = self._lint(candidate)
+        if not issues:
+            return True
+        guard = lock or _NULL_LOCK
+        try:
+            fixed = self.llm.complete_json(
+                prompts.sharpen_system_prompt(self.cfg),
+                prompts.format_for_sharpen(candidate.__dict__, payload["signals"], issues),
+                strong=True, temperature=0.3, max_tokens=700,
+            ) or {}
+        except Exception as exc:  # noqa: BLE001
+            log.warning("Sharpen pass failed: %s", exc)
+            fixed = {}
+        for name in ("statement", "buyer", "why_now", "outcome", "orange_angle", "who_signs"):
+            value = str(fixed.get(name) or "").strip()
+            if value:
+                setattr(candidate, name, value)
+        with guard:
+            stats.sharpened += 1
+        remaining = self._lint(candidate)
+        if remaining:
+            with guard:
+                stats.failed_specificity += 1
+                stats.rejections.append({"statement": candidate.statement,
+                                         "reason": "title rules: " + "; ".join(remaining)})
+            return False
+        return True
+
+    def _radar_corpus(self) -> tuple[list[dict[str, Any]], Any]:
+        """Every live space and its statement embedding, read once per run."""
+        with self._corpus_lock:
+            if self._corpus is None:
+                rows = [dict(r) for r in self.db.query(
+                    "SELECT id, statement, vertical, use_case, technology FROM opportunity_spaces "
+                    "WHERE merged_into IS NULL AND state NOT IN ('rejected', 'dormant')")]
+                vectors = self.embedder.encode([r["statement"] for r in rows]) if rows else None
+                self._corpus = (rows, vectors)
+            return self._corpus
+
+    def _neighbours(self, candidate: Candidate, batch: list[Candidate], k: int = 8,
+                    exclude_id: str | None = None) -> list[str]:
+        """The k statements closest to this one, on the radar and in the batch."""
+        rows, vectors = self._radar_corpus()
+        texts = [r["statement"] for r in rows if r["id"] != exclude_id]
+        pool_vectors = None
+        if vectors is not None and texts:
+            keep = [i for i, r in enumerate(rows) if r["id"] != exclude_id]
+            pool_vectors = vectors[keep]
+        others = [c.statement for c in batch if c is not candidate]
+        if others:
+            other_vectors = self.embedder.encode(others)
+            pool_vectors = other_vectors if pool_vectors is None else np.vstack([pool_vectors, other_vectors])
+            texts = texts + others
+        if pool_vectors is None or not texts:
+            return []
+        query = self.embedder.encode([candidate.statement])[0]
+        order = np.argsort(-(pool_vectors @ query))[:k]
+        return [texts[i] for i in order]
+
     def _criticise(self, candidate: Candidate, payload: dict[str, Any],
                    accepted: list[Candidate], stats: SynthesisStats,
                    lock: "threading.Lock | None" = None) -> bool:
         """Adversarial critique pass (§4.4.3)."""
         guard = lock or _NULL_LOCK
-        neighbours = [c.statement for c in accepted[-8:]]
-        system = prompts.critic_system_prompt(self.cfg)
-        user = prompts.format_candidate_for_critic(
-            candidate.__dict__, payload["signals"], neighbours
-        )
         try:
-            verdict = self.llm.complete_json(
-                system, user, strong=True, temperature=self.critic_temperature, max_tokens=900
-            )
-        except Exception as exc:  # noqa: BLE001
-            log.warning("Critic pass failed, keeping candidate unjudged: %s", exc)
-            return True
+            neighbours = self._neighbours(candidate, accepted, exclude_id=candidate.existing_id)
+        except Exception as exc:  # noqa: BLE001 — neighbours sharpen the critic, they do not gate it
+            log.warning("Could not compute critic neighbours: %s", exc)
+            neighbours = [c.statement for c in accepted[-8:]]
+        system = prompts.critic_system_prompt(self.cfg)
 
+        def judge() -> dict[str, Any] | None:
+            user = prompts.format_candidate_for_critic(candidate.__dict__, payload["signals"], neighbours)
+            try:
+                return self.llm.complete_json(
+                    system, user, strong=True, temperature=self.critic_temperature, max_tokens=900
+                ) or {}
+            except Exception as exc:  # noqa: BLE001
+                log.warning("Critic pass failed, keeping candidate unjudged: %s", exc)
+                return None
+
+        verdict = judge()
+        if verdict is None:
+            return True
         score = int(verdict.get("score", 0) or 0)
+
+        # A revision is not accepted on the critic's word: it must obey the
+        # title rules, and it is judged again, once (2026-11-25). Before this
+        # the rewritten title was stored without anyone looking at it.
+        revised = str(verdict.get("revised_statement") or "").strip()
+        if (verdict.get("verdict") == "revise" and revised and revised != candidate.statement
+                and self.min_chars <= len(revised) <= self.max_chars):
+            before = (candidate.statement, candidate.why_now, candidate.who_signs)
+            candidate.statement = revised
+            for key, name in (("revised_why_now", "why_now"), ("revised_who_signs", "who_signs")):
+                value = str(verdict.get(key) or "").strip()
+                if value:
+                    setattr(candidate, name, value)
+            if self.spec_enabled and self._lint(candidate):
+                candidate.statement, candidate.why_now, candidate.who_signs = before
+            else:
+                second = judge()
+                if second is not None:
+                    verdict = second
+                    score = int(second.get("score", 0) or 0)
+
         candidate.critic_score = score
         candidate.critic_notes = "; ".join(str(i) for i in verdict.get("issues", [])[:4])
 
@@ -1377,11 +1523,6 @@ class Synthesiser:
                 candidate.critic_notes = (candidate.critic_notes + "; quantitative claim in generated text").strip("; ")
                 score = min(score, 2)
                 candidate.critic_score = score
-
-        if verdict.get("verdict") == "revise" and verdict.get("revised_statement"):
-            revised = str(verdict["revised_statement"]).strip()
-            if self.min_chars <= len(revised) <= self.max_chars:
-                candidate.statement = revised
 
         if score < self.critic_min:
             with guard:
@@ -1455,7 +1596,10 @@ class Synthesiser:
             if i in merged_away:
                 continue
             for j in range(i + 1, len(survivors)):
-                if j in merged_away or similarity[i, j] < self.dup_threshold:
+                if j in merged_away or similarity[i, j] < self.judge_floor:
+                    continue
+                if similarity[i, j] < self.dup_threshold and not self._same_opportunity(
+                        survivors[i].statement, survivors[j].statement):
                     continue
                 stats.merged_duplicates += 1
                 survivors[i].why_hot = _merge_claims(survivors[i].why_hot, survivors[j].why_hot)
@@ -1466,12 +1610,97 @@ class Synthesiser:
                 merged_away.add(j)
         return [c for idx, c in enumerate(survivors) if idx not in merged_away]
 
+    def _same_opportunity(self, a: str, b: str) -> bool:
+        """The model's verdict on a pair in the grey band. Unsure means distinct."""
+        if self.llm is None:
+            return False
+        try:
+            verdict = self.llm.complete_json(
+                prompts.same_opportunity_prompt(), f"SPACE A: {a}\n\nSPACE B: {b}",
+                temperature=0.0, max_tokens=150,
+            ) or {}
+        except Exception as exc:  # noqa: BLE001
+            log.warning("Same-opportunity judge failed: %s", exc)
+            return False
+        return bool(verdict.get("same"))
+
+    def _against_radar(self, candidates: list[Candidate], stats: SynthesisStats) -> list[Candidate]:
+        """Cross-radar distinctness and the per-technology cap (2026-11-25).
+
+        A candidate on a NEW cell whose statement is the same opportunity as a
+        space already on the radar does not create a space: its evidence
+        attaches to that space (`merge_into`). Then at most
+        `max_new_per_technology` new spaces per technology survive, best critic
+        score first, so one hot theme cannot flood a run.
+        """
+        live = self._live_triples()
+        fresh = [c for c in candidates if c.triple not in live]
+        rows, vectors = self._radar_corpus()
+        if fresh and vectors is not None and len(rows):
+            query = self.embedder.encode([c.statement for c in fresh])
+            similarity = query @ vectors.T
+            for idx, candidate in enumerate(fresh):
+                best = int(np.argmax(similarity[idx]))
+                score = float(similarity[idx, best])
+                if score < self.judge_floor:
+                    continue
+                target = rows[best]
+                if score >= self.dup_threshold or self._same_opportunity(candidate.statement,
+                                                                         target["statement"]):
+                    candidate.merge_into = target["id"]
+                    candidate.critic_notes = (
+                        f"{candidate.critic_notes}; same opportunity as {target['id']} "
+                        f"(cos={score:.3f}) — evidence attached there").strip("; ")
+                    stats.merged_into_existing += 1
+                    stats.rejections.append({"statement": candidate.statement,
+                                             "reason": f"same opportunity as {target['id']} "
+                                                       f"'{target['statement'][:80]}' (cos={score:.2f})"})
+        if self.max_new_per_technology > 0:
+            creating = sorted((c for c in fresh if c.merge_into is None),
+                              key=lambda c: (c.critic_score or 0), reverse=True)
+            per_tech: dict[str, int] = {}
+            dropped: set[int] = set()
+            for candidate in creating:
+                per_tech[candidate.technology] = per_tech.get(candidate.technology, 0) + 1
+                if per_tech[candidate.technology] > self.max_new_per_technology:
+                    dropped.add(id(candidate))
+                    stats.capped_by_technology += 1
+                    stats.rejections.append({"statement": candidate.statement,
+                                             "reason": f"more than {self.max_new_per_technology} new "
+                                                       f"{candidate.technology} spaces in one run"})
+            candidates = [c for c in candidates if id(c) not in dropped]
+        return candidates
+
     def _persist(self, candidates: list[Candidate], refresh_id: str, stats: SynthesisStats) -> None:
         """DR-03: a topic that recurs is UPDATED, not recreated."""
         now = dt.datetime.now(dt.timezone.utc).isoformat(timespec="seconds")
         today = now[:10]
         with self.db.cursor() as cur:
             for candidate in candidates:
+                if candidate.merge_into:
+                    # The same opportunity as a space already on the radar, on a
+                    # different cell: attach the evidence, keep that space's title.
+                    target = cur.execute(
+                        "SELECT id, why_hot FROM opportunity_spaces WHERE id = ? AND merged_into IS NULL",
+                        (candidate.merge_into,),
+                    ).fetchone()
+                    if target:
+                        merged = _merge_claims(unjs(target["why_hot"], []) or [], candidate.why_hot)
+                        cur.execute(
+                            "UPDATE opportunity_spaces SET version = version + 1, why_hot = ?, "
+                            "last_refresh = ? WHERE id = ?",
+                            (js(merged), today, target["id"]),
+                        )
+                        if target["id"] not in stats.created_ids and target["id"] not in stats.updated_ids:
+                            stats.updated_ids.append(target["id"])
+                        for signal_id in candidate.signal_ids:
+                            cur.execute(
+                                "INSERT OR IGNORE INTO opportunity_signals "
+                                "(opportunity_id, signal_id, attached_at, refresh_id) VALUES (?,?,?,?)",
+                                (target["id"], signal_id, now, refresh_id),
+                            )
+                        continue
+
                 existing = cur.execute(
                     "SELECT id, version, why_hot FROM opportunity_spaces "
                     "WHERE vertical=? AND use_case=? AND technology=? AND merged_into IS NULL",
@@ -1485,11 +1714,17 @@ class Synthesiser:
                     cur.execute(
                         """UPDATE opportunity_spaces
                            SET version = version + 1, statement = ?, why_hot = ?, last_refresh = ?,
-                               critic_score = ?, critic_notes = ?, prompt_version = ?, model_version = ?
+                               critic_score = ?, critic_notes = ?, prompt_version = ?, model_version = ?,
+                               buyer = COALESCE(NULLIF(?, ''), buyer),
+                               why_now = COALESCE(NULLIF(?, ''), why_now),
+                               outcome = COALESCE(NULLIF(?, ''), outcome),
+                               orange_angle = COALESCE(NULLIF(?, ''), orange_angle),
+                               who_signs = COALESCE(NULLIF(?, ''), who_signs)
                            WHERE id = ?""",
                         (candidate.statement, js(merged), today, candidate.critic_score,
                          candidate.critic_notes, prompts.PROMPT_VERSION_SYNTHESIS,
-                         self.llm.strong_model, existing["id"]),
+                         self.llm.strong_model, candidate.buyer, candidate.why_now, candidate.outcome,
+                         candidate.orange_angle, candidate.who_signs, existing["id"]),
                     )
                     topic_id = existing["id"]
                     # Deduplication is by statement embedding, not by taxonomy
@@ -1506,13 +1741,17 @@ class Synthesiser:
                         """INSERT INTO opportunity_spaces
                            (id, version, vertical, use_case, technology, statement, domains, personas,
                             geographies, state, state_reason, state_changed_at, why_hot, critic_score,
-                            critic_notes, first_seen, last_refresh, pipeline_version, prompt_version, model_version)
-                           VALUES (?,1,?,?,?,?,?,?,?,'candidate','emitted by synthesis',?,?,?,?,?,?,?,?,?)""",
+                            critic_notes, first_seen, last_refresh, pipeline_version, prompt_version, model_version,
+                            buyer, why_now, outcome, orange_angle, who_signs)
+                           VALUES (?,1,?,?,?,?,?,?,?,'candidate','emitted by synthesis',?,?,?,?,?,?,?,?,?,
+                                   ?,?,?,?,?)""",
                         (topic_id, candidate.vertical, candidate.use_case, candidate.technology,
                          candidate.statement, js(candidate.domains), js(candidate.personas),
                          js(candidate.geographies), today, js(candidate.why_hot), candidate.critic_score,
                          candidate.critic_notes, today, today, self.cfg.pipeline_version,
-                         prompts.PROMPT_VERSION_SYNTHESIS, self.llm.strong_model),
+                         prompts.PROMPT_VERSION_SYNTHESIS, self.llm.strong_model,
+                         candidate.buyer or None, candidate.why_now or None, candidate.outcome or None,
+                         candidate.orange_angle or None, candidate.who_signs or None),
                     )
                     stats.created_ids.append(topic_id)
 

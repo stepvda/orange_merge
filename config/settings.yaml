@@ -68,7 +68,24 @@ curation:
   # A candidate must resolve to exactly one vertical, use case and technology.
   require_exact_triple: true
   # Near-duplicate merge threshold on opportunity-statement embeddings (§4.4.5).
-  duplicate_similarity_threshold: 0.86
+  # Lowered from 0.86 on 2026-11-25: at 0.86 the radar kept six confidential-
+  # computing spaces and two rewordings of one smart-grid intrusion space.
+  # Applied within a batch AND against the spaces already on the radar.
+  duplicate_similarity_threshold: 0.80
+  # Grey band below the threshold: pairs at or above this are put to the model
+  # (prompts.same_opportunity_prompt) and merged if it says they are the same.
+  duplicate_judge_floor: 0.75
+  # A run may create at most this many NEW spaces per technology, so one hot
+  # theme cannot flood the radar. The best by critic score are kept.
+  max_new_per_technology: 2
+  # Deterministic title rules (radar.pipeline.specificity). A title that breaks
+  # one is sent back to the model once, then dropped.
+  specificity:
+    enabled: true
+    max_title_words: 18
+    max_filler_words: 1
+    max_why_now_chars: 150
+    max_who_signs_chars: 70
   # Reject candidates that restate an offer already in data/portfolio.json
   # (radar.portfolio_overlap): multilingual embedding similarity of the
   # statement to each offer's name + headline (offers are mostly French).
@@ -100,7 +117,9 @@ curation:
     - "automation"
   # Over-produce then keep the best (§4.4.3 diversity by construction).
   candidates_per_cluster: 3
-  critic_min_score: 3   # of 5; below this the candidate is revised once, then dropped
+  # Raised from 3 on 2026-11-25: the rubric defines 3 as "the statement is
+  # vague", and 20 of the first 75 spaces were accepted at 3.
+  critic_min_score: 4   # of 5; a revised title is re-judged once, then dropped
 
 # ---- Clustering (stage 4).
 clustering:
@@ -180,7 +199,9 @@ description:
   # routine refresh without anyone asking for it. NFR-10 makes inference cost a
   # reported quantity, and §4.12's rule applies to the cap itself: what was left
   # ungenerated is logged, never silently dropped.
-  max_per_refresh: 40
+  # Raised from 40 on 2026-11-25: every space should have its description
+  # before anyone opens it. Generation runs also describe what they create.
+  max_per_refresh: 500
   # Topics described concurrently. Each is one independent call.
   max_parallel: 4
 

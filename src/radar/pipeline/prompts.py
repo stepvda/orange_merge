@@ -16,33 +16,60 @@ from typing import Any
 
 from ..config import Config
 
-PROMPT_VERSION_SYNTHESIS = "synth-v1"
-PROMPT_VERSION_CRITIC = "critic-v1"
+PROMPT_VERSION_SYNTHESIS = "synth-v2"
+PROMPT_VERSION_CRITIC = "critic-v2"
+PROMPT_VERSION_SHARPEN = "sharpen-v1"
+PROMPT_VERSION_SAME = "same-opportunity-v1"
+PROMPT_VERSION_REWRITE = "rewrite-v1"
 PROMPT_VERSION_RELEVANCE_RUBRIC = "strategic-relevance-v1"
 PROMPT_VERSION_NEXT_ACTION = "next-action-v2"
 PROMPT_VERSION_ENTAILMENT = "entail-v1"
 PROMPT_VERSION_DESCRIPTION = "describe-v1"
 
 
-# The six worked examples from the briefing. §4.4.2 calls these "unusually good
-# few-shot anchors because they were written by the client and encode the
-# intended granularity precisely".
+# Worked examples (rewritten 2026-11-25). The briefing's originals were
+# technology-first noun phrases ("Private 5G plus edge vision for safety
+# compliance in mining") and the model copied that shape: 57 of the first 75
+# titles opened with a technology. These keep the briefing's granularity but put
+# the buyer and the outcome first, and carry the "why now" and "who signs"
+# that the list shows under every title.
 POSITIVE_EXAMPLES = [
-    "Private 5G plus edge vision for safety compliance in mining",
-    "Agentic AI for claims deflection in insurance contact centres",
-    "Digital product passports and traceability for materials producers",
-    "Network-as-a-sensor security analytics for banking WANs",
-    "Predictive worker-safety wearables for chemicals plants",
-    "Sovereign cloud and AI enclaves for government citizen data",
+    {"statement": "Open-pit mines proving safety compliance to inspectors with private 5G and edge video analytics",
+     "buyer": "open-pit mining operators", "why_now": "Stricter site-safety inspections and incident reporting",
+     "who_signs": "Head of HSE"},
+    {"statement": "Motor insurers cutting claims-call volume with agentic AI that settles simple claims end to end",
+     "buyer": "motor insurers", "why_now": "Claims-call surges after storms overwhelm contact centres",
+     "who_signs": "Chief claims officer"},
+    {"statement": "Steel and aluminium producers meeting EU digital product passport deadlines with traceable batch data",
+     "buyer": "steel and aluminium producers", "why_now": "EU product passport obligations phase in from 2027",
+     "who_signs": "Head of compliance and sustainability"},
+    {"statement": "Retail banks spotting attacks on branch WANs by turning network telemetry into security analytics",
+     "buyer": "retail banks", "why_now": "DORA ICT-risk rules apply from January 2025",
+     "who_signs": "CISO"},
+    {"statement": "Chemicals plants preventing exposure incidents with wearables that predict worker fatigue and gas risk",
+     "buyer": "chemicals plants", "why_now": "Seveso sites under pressure after recent exposure incidents",
+     "who_signs": "Plant HSE director"},
+    {"statement": "Ministries processing citizen data with AI inside French-jurisdiction enclaves they hold the keys to",
+     "buyer": "ministries", "why_now": "SecNumCloud now required for sensitive public data",
+     "who_signs": "Ministry CIO / CDO"},
 ]
 
-# §4.4.2 negative examples, with the reason each fails.
+# Negative examples, with the reason each fails. The last four are real titles
+# the radar produced, kept so the model learns from its own failures.
 NEGATIVE_EXAMPLES = [
     ("AI", "a technology, not an opportunity: no vertical, no use case, nothing to sell"),
     ("Cloud", "a delivery model, not an opportunity"),
     ("Cybersecurity", "a domain, not an opportunity"),
     ("Digital transformation in retail", "a vertical plus a slogan: no specific use case or technology"),
     ("AI in industry", "generic on both axes; a salesperson could not open a meeting with it"),
+    ("Sovereign post-quantum migration for public-sector cryptographic estates under jurisdictional control "
+     "and readiness roadmaps.", "jargon and filler; no named buyer, no trigger, no outcome"),
+    ("LEO non-terrestrial connectivity can provide resilient backup links for mobile and remote transport "
+     "operations.", "opens with the technology, hedges with 'can', and 'transport operations' is not a buyer"),
+    ("Edge computing for remote patient monitoring can reduce cloud dependence and support low-latency "
+     "analysis.", "technology-first; the outcome is the vendor's, not the hospital's"),
+    ("Confidential computing can keep clinical data processing under provider control while proving "
+     "workload integrity.", "true of every confidential-computing deal in every vertical: fails the swap test"),
 ]
 
 
@@ -102,14 +129,38 @@ CUSTOMER PERSONAS ({len(cfg.personas)}):
 
 
 def examples_block() -> str:
-    positives = "\n".join(f"  GOOD: {e}" for e in POSITIVE_EXAMPLES)
+    positives = "\n".join(
+        f"  GOOD: \"{e['statement']}\"\n        why now: {e['why_now']} · who signs: {e['who_signs']}"
+        for e in POSITIVE_EXAMPLES)
     negatives = "\n".join(f"  BAD: \"{text}\" — {why}" for text, why in NEGATIVE_EXAMPLES)
     return f"""WHAT SPECIFICITY MEANS
-These were written by the client and encode the intended granularity exactly:
+Good titles name the BUYER first, then the OUTCOME the buyer gets, then (briefly)
+how. They carry a "why now" (the trigger: a regulation, a deadline, a tender, an
+incident) and a "who signs" (the role that owns the budget):
 {positives}
 
 These fail and must never be emitted:
 {negatives}
+
+TITLE RULES — a title that breaks one is sent back, then dropped:
+  * Open with the buyer or the outcome, NEVER with a technology name.
+  * Name a concrete buyer ("regional hospital groups", "Dutch municipalities",
+    "port authorities"), not "organisations", "the public sector" or "operators".
+  * No hedges: never "can", "could", "may", "helps to".
+  * At most one abstract word such as resilient, governed, trusted, sovereign,
+    scalable, secure; "under ... control" counts as one.
+  * At most 18 words.
+
+WHY NOW must be an EVENT with a date or a name, taken from the evidence: a
+regulation coming into force, a deadline, a named tender, an incident, a funding
+programme. Not a trend ("growing adoption", "rising demand", "is shifting to")
+and not a restatement of the title. Under 100 characters.
+
+WHO SIGNS is ONE role that owns the budget ("Head of HSE", "Trust CIO"), never
+a list of roles separated by slashes.
+
+THE SWAP TEST: replace the vertical with another one. If the title is still true,
+it is generic — make it about something only this buyer has.
 
 The test: could a salesperson open a customer meeting on Thursday with this
 sentence, and would the customer know it was about them?"""
@@ -126,7 +177,9 @@ OPPORTUNITY SPACES, each defined as exactly:
 
     Vertical  x  Use Case  x  Technology
 
-plus a human-readable opportunity statement.
+plus a human-readable opportunity statement (the TITLE shown on the radar) and
+the parts it is built from: the buyer, why now, the outcome, Orange's angle and
+who signs.
 
 {vocabulary_block(cfg)}
 
@@ -154,7 +207,12 @@ OUTPUT — a single JSON object:
       "vertical": "<vertical id>",
       "use_case": "<use case id>",
       "technology": "<technology id>",
-      "statement": "<one specific sentence, 40-180 characters>",
+      "statement": "<the title: buyer and outcome first, at most 18 words, no hedges>",
+      "buyer": "<the concrete customer type, e.g. 'regional hospital groups'>",
+      "why_now": "<the dated or named event that makes it urgent now, under 100 characters, from the evidence>",
+      "outcome": "<the business result the buyer gets, one short phrase>",
+      "orange_angle": "<why Orange Business specifically, one short phrase>",
+      "who_signs": "<ONE role that owns the budget, e.g. 'Head of HSE'>",
       "domains": ["<domain id>", ...],
       "personas": ["<persona id>", ...],
       "geographies": ["<ISO 3166-1 alpha-2 code or EU>", ...],
@@ -305,18 +363,29 @@ your per-test judgements — one failure caps the whole score.
      person know what to assemble?
   E. NO INVENTED FACTS. Does any claim state a number, date or fact absent from
      the evidence?
+  F. SWAP TEST. Replace the vertical with another one. If the title is still
+     true, it is generic: fail.
+  G. NAMED. Does the title name a concrete buyer, and do `why_now` and
+     `who_signs` name a real trigger and a real budget owner? "Organisations",
+     "the public sector", "growing demand" and "digital transformation" fail.
+  H. DISTINCT FROM THE RADAR. The NEIGHBOURING SPACES listed are the closest
+     ones already on the radar. If this is one of them reworded, fail.
 
 Scoring anchors:
   5 — as good as the client's own worked examples; ship it
   4 — specific and actionable, minor wording issues
   3 — borderline: real topic, but the statement is vague or a claim is thin
+      (3 is a FAIL: only 4 and 5 are kept)
   2 — generic, or a claim is uncited
   1 — a technology theme wearing an opportunity's clothes, or contains invention
 
 Return JSON:
 {{"score": 1-5, "verdict": "accept"|"revise"|"reject",
   "issues": ["<specific, actionable>", ...],
-  "revised_statement": "<only if verdict is revise; else null>"}}"""
+  "revised_statement": "<only if verdict is revise: a sharper title that obeys every
+                        title rule; else null>",
+  "revised_why_now": "<only if you revised and the why-now should change; else null>",
+  "revised_who_signs": "<only if you revised and the who-signs should change; else null>"}}"""
 
 
 def strategic_relevance_prompt(cfg: Config) -> str:
@@ -412,7 +481,8 @@ def format_candidate_for_critic(candidate: dict[str, Any], evidence: list[dict[s
         "CANDIDATE",
         json.dumps(
             {k: candidate.get(k) for k in
-             ("vertical", "use_case", "technology", "statement", "why_hot", "why_specific")},
+             ("vertical", "use_case", "technology", "statement", "buyer", "why_now", "outcome",
+              "orange_angle", "who_signs", "why_hot", "why_specific")},
             ensure_ascii=False, indent=2,
         ),
         "",
@@ -422,8 +492,9 @@ def format_candidate_for_critic(candidate: dict[str, Any], evidence: list[dict[s
         lines.append(f"- [{signal['id']}] {signal['title']} ({signal['publisher']}, {signal['published_at']})")
         lines.append(f"  {signal['extract'][:300]}")
     if neighbours:
-        lines += ["", "NEIGHBOURING CANDIDATES (test C — is this distinguishable?):"]
-        lines += [f"  - {n}" for n in neighbours[:5]]
+        lines += ["", "NEIGHBOURING SPACES — the closest already on the radar or in this batch "
+                      "(tests C and H — is this distinguishable?):"]
+        lines += [f"  - {n}" for n in neighbours[:8]]
     return "\n".join(lines)
 
 
@@ -1529,3 +1600,71 @@ SCOPING_OPENING_SUGGESTIONS = (
     "Something in manufacturing that is being driven by regulation",
     "Where does Orange have a right to win that we are not already covering?",
 )
+
+
+def sharpen_system_prompt(cfg: Config) -> str:
+    """One rewrite of a title that broke the deterministic title rules."""
+    return f"""MOCK_KIND=sharpen
+You rewrite opportunity-space titles for Orange Business so they are specific.
+
+{examples_block()}
+
+You get a candidate, the evidence it cites and the rules its title broke. Fix
+EVERY problem. Use only facts from the evidence. Keep the same opportunity — do
+not change the vertical, use case or technology.
+
+Return JSON:
+{{"statement": "<new title>", "buyer": "<buyer>", "why_now": "<why now>",
+  "outcome": "<outcome>", "orange_angle": "<Orange's angle>", "who_signs": "<who signs>"}}"""
+
+
+def format_for_sharpen(candidate: dict[str, Any], evidence: list[dict[str, Any]], issues: list[str]) -> str:
+    lines = [
+        "CANDIDATE",
+        json.dumps({k: candidate.get(k) for k in
+                    ("vertical", "use_case", "technology", "statement", "buyer", "why_now", "outcome",
+                     "orange_angle", "who_signs", "why_hot")}, ensure_ascii=False, indent=2),
+        "",
+        "PROBLEMS TO FIX:",
+        *[f"  - {i}" for i in issues],
+        "",
+        "EVIDENCE:",
+    ]
+    for signal in evidence[:20]:
+        lines.append(f"- [{signal['id']}] {signal['title']} ({signal['publisher']}, {signal['published_at']})")
+        lines.append(f"  {str(signal.get('extract') or '')[:300]}")
+    return "\n".join(lines)
+
+
+def same_opportunity_prompt() -> str:
+    """Pairwise judge for near-duplicates in the grey band below the merge threshold."""
+    return """MOCK_KIND=same_opportunity
+You decide whether two opportunity spaces are the SAME sales opportunity.
+
+They are the same if the same buyer would buy essentially the same thing for the
+same reason — even if the wording, the technology label or the angle differs.
+They are different if the buyer, the problem or the offer is genuinely different
+(a different vertical facing a different problem, a different budget owner).
+
+Return JSON: {"same": true|false, "reason": "<short>"}"""
+
+
+def rewrite_system_prompt(cfg: Config) -> str:
+    """One-off rewrite of an existing space's title, why-now and who-signs."""
+    return f"""MOCK_KIND=rewrite
+{orange_context_block(cfg)}
+
+You are sharpening an opportunity space that is ALREADY on the radar. Its
+taxonomy cell (vertical x use case x technology) is fixed and must not change.
+Rewrite its title and the parts the title is built from, using ONLY the evidence
+given — you are reorganising evidence, not recalling what you know.
+
+{examples_block()}
+
+If the evidence is too thin or too general to support a specific title, say so
+with "too_generic": true and give your best attempt anyway.
+
+Return JSON:
+{{"statement": "<new title>", "buyer": "<buyer>", "why_now": "<why now, from the evidence>",
+  "outcome": "<outcome>", "orange_angle": "<Orange's angle>", "who_signs": "<who signs>",
+  "too_generic": false, "note": "<one line on what you changed and why>"}}"""

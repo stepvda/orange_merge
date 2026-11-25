@@ -398,6 +398,14 @@ export interface Topic {
   triple: { vertical: string; use_case: string; technology: string }
   labels: { vertical: string; use_case: string; technology: string }
   statement: string
+  /** Subtitle (2026-11-25): the trigger that makes it urgent, and the budget
+   *  owner. Null on a space written before they existed. */
+  why_now?: string | null
+  who_signs?: string | null
+  /** The parts the title is built from. */
+  buyer?: string | null
+  outcome?: string | null
+  orange_angle?: string | null
   domains: string[]
   domain_labels: string[]
   /** Portfolio SVP the statement is closest to (radar.svp); null without a portfolio. */
