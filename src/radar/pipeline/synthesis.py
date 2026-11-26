@@ -215,6 +215,11 @@ class Candidate:
     outcome: str = ""
     orange_angle: str = ""
     who_signs: str = ""
+    #: The words in the title that name the use case and the technology
+    #: (2026-11-25): the title must answer vertical x use case x technology on
+    #: its own. Not stored; they exist so the title rules can check it.
+    use_case_phrase: str = ""
+    technology_phrase: str = ""
     cluster_id: int | None = None
     critic_score: int | None = None
     critic_notes: str = ""
@@ -1232,6 +1237,8 @@ class Synthesiser:
                         outcome=str(entry.get("outcome") or "").strip(),
                         orange_angle=str(entry.get("orange_angle") or "").strip(),
                         who_signs=str(entry.get("who_signs") or "").strip(),
+                        use_case_phrase=str(entry.get("use_case_phrase") or "").strip(),
+                        technology_phrase=str(entry.get("technology_phrase") or "").strip(),
                     )
                 )
             except (TypeError, ValueError):
@@ -1396,7 +1403,17 @@ class Synthesiser:
             self._tech_phrases = specificity.technology_phrases(self.cfg)
         return specificity.lint(candidate.statement, buyer=candidate.buyer, why_now=candidate.why_now,
                                 who_signs=candidate.who_signs, tech_phrases=self._tech_phrases,
-                                settings=self.spec_settings).issues
+                                settings=self.spec_settings, use_case_phrase=candidate.use_case_phrase,
+                                technology_phrase=candidate.technology_phrase,
+                                own_tech_phrases=self._own_tech_phrases(candidate.technology)).issues
+
+    def _own_tech_phrases(self, technology: str) -> list[str]:
+        """The label and synonyms of one technology, for the triple check."""
+        item = self.cfg.technologies.get(technology)
+        if item is None:
+            return []
+        return [p for p in {item.label.lower(), *(s.lower() for s in item.synonyms)}
+                if p and p not in specificity.GENERIC_TECH]
 
     def _sharpen(self, candidate: Candidate, payload: dict[str, Any], stats: SynthesisStats,
                  lock: "threading.Lock | None" = None) -> bool:
@@ -1420,7 +1437,8 @@ class Synthesiser:
         except Exception as exc:  # noqa: BLE001
             log.warning("Sharpen pass failed: %s", exc)
             fixed = {}
-        for name in ("statement", "buyer", "why_now", "outcome", "orange_angle", "who_signs"):
+        for name in ("statement", "buyer", "why_now", "outcome", "orange_angle", "who_signs",
+                     "use_case_phrase", "technology_phrase"):
             value = str(fixed.get(name) or "").strip()
             if value:
                 setattr(candidate, name, value)

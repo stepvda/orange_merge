@@ -39,6 +39,8 @@ log = logging.getLogger(__name__)
 
 LIVE_STATES = ("active", "watchlist", "fading", "candidate")
 FIELDS = ("statement", "buyer", "why_now", "outcome", "orange_angle", "who_signs")
+#: Returned by the model so the title rules can check the triple; not stored.
+PHRASES = ("use_case_phrase", "technology_phrase")
 
 
 class StatementRewriter:
@@ -104,7 +106,7 @@ class StatementRewriter:
             cand = Candidate(vertical=row["vertical"], use_case=row["use_case"],
                              technology=row["technology"], statement=row["statement"],
                              why_hot=current["why_hot"], existing_id=row["id"])
-            for name in FIELDS:
+            for name in FIELDS + PHRASES:
                 value = str(out.get(name) or "").strip()
                 if value:
                     setattr(cand, name, value)
@@ -126,7 +128,7 @@ class StatementRewriter:
         if not ok1 or (score1 is not None and score1 < self.synth.critic_min):
             first = best[0]
             retry = attempt(user + "\n\nYOUR PREVIOUS ATTEMPT\n" + json.dumps(
-                {name: getattr(first, name) for name in FIELDS}, ensure_ascii=False, indent=2)
+                {name: getattr(first, name) for name in FIELDS + PHRASES}, ensure_ascii=False, indent=2)
                 + "\n\nA HOSTILE REVIEWER REJECTED IT FOR THESE REASONS — fix every one, using only "
                   "the evidence:\n" + notes1)
             if rank(retry) > rank(best):

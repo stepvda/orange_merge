@@ -36,7 +36,8 @@ def synth(cfg, db):
 
 GOOD = dict(statement="Chemicals plants preventing exposure incidents with wearables that predict worker fatigue",
             buyer="chemicals plants", why_now="Seveso sites under pressure after exposure incidents",
-            who_signs="Plant HSE director")
+            who_signs="Plant HSE director", use_case_phrase="preventing exposure incidents",
+            technology_phrase="wearables")
 
 
 def make(**overrides) -> Candidate:
@@ -51,7 +52,10 @@ def make(**overrides) -> Candidate:
 def test_every_worked_example_passes_the_rules(tech):
     for e in prompts.POSITIVE_EXAMPLES:
         assert specificity.lint(e["statement"], buyer=e["buyer"], why_now=e["why_now"],
-                                who_signs=e["who_signs"], tech_phrases=tech).ok, e["statement"]
+                                who_signs=e["who_signs"], tech_phrases=tech,
+                                settings={"require_triple": True, "max_title_words": 22},
+                                use_case_phrase=e["use_case_phrase"],
+                                technology_phrase=e["technology_phrase"]).ok, e["statement"]
 
 
 @pytest.mark.parametrize("statement, rule", [
@@ -174,3 +178,47 @@ def test_rewrite_proposes_reviews_and_applies(cfg, db, tmp_path):
                        "WHERE id = 'OS002'")
     assert row["who_signs"] == "Port operations director" and row["version"] == 2
     assert row["prompt_version"] == prompts.PROMPT_VERSION_REWRITE
+
+
+# -- title alone answers vertical x use case x technology (2026-11-25) --------
+
+_TRIPLE = {"require_triple": True, "max_title_words": 22}
+_GOOD = "Motor insurers settling simple windscreen claims end to end with an agentic AI claims assistant"
+
+
+def _triple(statement, **kw):
+    base = dict(buyer="motor insurers", why_now="Storm claim surges in 2026", who_signs="Chief claims officer",
+                settings=_TRIPLE)
+    return specificity.lint(statement, **(base | kw)).issues
+
+
+def test_triple_passes_when_both_phrases_are_in_the_title():
+    assert _triple(_GOOD, use_case_phrase="settling simple windscreen claims",
+                   technology_phrase="agentic AI claims assistant") == []
+
+
+def test_triple_requires_a_use_case_phrase():
+    issues = _triple(_GOOD, technology_phrase="agentic AI claims assistant")
+    assert any("use case" in i for i in issues)
+
+
+def test_triple_phrase_must_appear_in_title():
+    issues = _triple(_GOOD, use_case_phrase="handling fraud cases", technology_phrase="agentic AI claims assistant")
+    assert any("does not appear" in i for i in issues)
+
+
+def test_triple_rejects_a_bare_generic_technology():
+    title = "Motor insurers settling simple windscreen claims end to end with AI"
+    issues = _triple(title, use_case_phrase="settling simple windscreen claims", technology_phrase="AI")
+    assert any("which technology" in i for i in issues)
+
+
+def test_triple_falls_back_to_the_technology_synonyms():
+    title = "Motor insurers settling simple windscreen claims with private 5G"
+    assert _triple(title, use_case_phrase="settling simple windscreen claims", own_tech_phrases=["private 5g"]) == []
+    assert any("no technology" in i for i in
+               _triple(title, use_case_phrase="settling simple windscreen claims", own_tech_phrases=["leo"]))
+
+
+def test_triple_off_by_default():
+    assert specificity.lint(_GOOD, buyer="motor insurers", why_now="x", who_signs="CFO").ok

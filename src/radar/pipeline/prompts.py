@@ -16,11 +16,11 @@ from typing import Any
 
 from ..config import Config
 
-PROMPT_VERSION_SYNTHESIS = "synth-v2"
-PROMPT_VERSION_CRITIC = "critic-v2"
-PROMPT_VERSION_SHARPEN = "sharpen-v1"
+PROMPT_VERSION_SYNTHESIS = "synth-v3"
+PROMPT_VERSION_CRITIC = "critic-v3"
+PROMPT_VERSION_SHARPEN = "sharpen-v2"
 PROMPT_VERSION_SAME = "same-opportunity-v1"
-PROMPT_VERSION_REWRITE = "rewrite-v1"
+PROMPT_VERSION_REWRITE = "rewrite-v2"
 PROMPT_VERSION_RELEVANCE_RUBRIC = "strategic-relevance-v1"
 PROMPT_VERSION_NEXT_ACTION = "next-action-v2"
 PROMPT_VERSION_ENTAILMENT = "entail-v1"
@@ -34,24 +34,31 @@ PROMPT_VERSION_DESCRIPTION = "describe-v1"
 # the buyer and the outcome first, and carry the "why now" and "who signs"
 # that the list shows under every title.
 POSITIVE_EXAMPLES = [
-    {"statement": "Open-pit mines proving safety compliance to inspectors with private 5G and edge video analytics",
-     "buyer": "open-pit mining operators", "why_now": "Stricter site-safety inspections and incident reporting",
-     "who_signs": "Head of HSE"},
-    {"statement": "Motor insurers cutting claims-call volume with agentic AI that settles simple claims end to end",
-     "buyer": "motor insurers", "why_now": "Claims-call surges after storms overwhelm contact centres",
-     "who_signs": "Chief claims officer"},
-    {"statement": "Steel and aluminium producers meeting EU digital product passport deadlines with traceable batch data",
-     "buyer": "steel and aluminium producers", "why_now": "EU product passport obligations phase in from 2027",
+    {"statement": "Open-pit mines proving blast-zone safety compliance with private 5G video analytics at the edge",
+     "buyer": "open-pit mining operators", "use_case_phrase": "proving blast-zone safety compliance",
+     "technology_phrase": "private 5G video analytics",
+     "why_now": "Stricter site-safety inspections and incident reporting", "who_signs": "Head of HSE"},
+    {"statement": "Motor insurers settling simple windscreen claims end to end with an agentic AI claims assistant",
+     "buyer": "motor insurers", "use_case_phrase": "settling simple windscreen claims",
+     "technology_phrase": "agentic AI claims assistant",
+     "why_now": "Claims-call surges after storms overwhelm contact centres", "who_signs": "Chief claims officer"},
+    {"statement": "Steel producers issuing EU digital product passports per batch from IoT furnace sensor data",
+     "buyer": "steel producers", "use_case_phrase": "issuing EU digital product passports per batch",
+     "technology_phrase": "IoT furnace sensor data",
+     "why_now": "EU product passport obligations phase in from 2027",
      "who_signs": "Head of compliance and sustainability"},
-    {"statement": "Retail banks spotting attacks on branch WANs by turning network telemetry into security analytics",
-     "buyer": "retail banks", "why_now": "DORA ICT-risk rules apply from January 2025",
-     "who_signs": "CISO"},
-    {"statement": "Chemicals plants preventing exposure incidents with wearables that predict worker fatigue and gas risk",
-     "buyer": "chemicals plants", "why_now": "Seveso sites under pressure after recent exposure incidents",
-     "who_signs": "Plant HSE director"},
-    {"statement": "Ministries processing citizen data with AI inside French-jurisdiction enclaves they hold the keys to",
-     "buyer": "ministries", "why_now": "SecNumCloud now required for sensitive public data",
-     "who_signs": "Ministry CIO / CDO"},
+    {"statement": "Retail banks detecting attacks on branch WAN links with SD-WAN telemetry fed into a SOC",
+     "buyer": "retail banks", "use_case_phrase": "detecting attacks on branch WAN links",
+     "technology_phrase": "SD-WAN telemetry",
+     "why_now": "DORA ICT-risk rules apply from January 2025", "who_signs": "CISO"},
+    {"statement": "Seveso chemicals plants alerting on gas exposure and worker fatigue with connected wearables",
+     "buyer": "Seveso chemicals plants", "use_case_phrase": "alerting on gas exposure and worker fatigue",
+     "technology_phrase": "connected wearables",
+     "why_now": "Seveso sites under pressure after recent exposure incidents", "who_signs": "Plant HSE director"},
+    {"statement": "French ministries running LLM analysis of citizen case files in SecNumCloud confidential enclaves",
+     "buyer": "French ministries", "use_case_phrase": "LLM analysis of citizen case files",
+     "technology_phrase": "SecNumCloud confidential enclaves",
+     "why_now": "SecNumCloud now required for sensitive public data", "who_signs": "Ministry CIO"},
 ]
 
 # Negative examples, with the reason each fails. The last four are real titles
@@ -130,13 +137,28 @@ CUSTOMER PERSONAS ({len(cfg.personas)}):
 
 def examples_block() -> str:
     positives = "\n".join(
-        f"  GOOD: \"{e['statement']}\"\n        why now: {e['why_now']} · who signs: {e['who_signs']}"
+        f"  GOOD: \"{e['statement']}\"\n        who: {e['buyer']} · use case: {e['use_case_phrase']} · "
+        f"technology: {e['technology_phrase']}\n        why now: {e['why_now']} · who signs: {e['who_signs']}"
         for e in POSITIVE_EXAMPLES)
     negatives = "\n".join(f"  BAD: \"{text}\" — {why}" for text, why in NEGATIVE_EXAMPLES)
     return f"""WHAT SPECIFICITY MEANS
-Good titles name the BUYER first, then the OUTCOME the buyer gets, then (briefly)
-how. They carry a "why now" (the trigger: a regulation, a deadline, a tender, an
-incident) and a "who signs" (the role that owns the budget):
+THE TITLE ALONE MUST ANSWER VERTICAL x USE CASE x TECHNOLOGY. A reader who sees
+only the title — no description, no labels — must be able to say:
+  WHO   — the concrete buyer (a segment of the vertical, narrower than its label)
+  WHAT  — the concrete use case: the task, workflow or asset the buyer works on
+          ("settling simple windscreen claims", "scheduling MRI scanners"),
+          narrower than the use-case label
+  WITH  — the concrete technology, narrower than the technology label
+          ("private 5G video analytics", "ML-KEM key exchange in HSMs"),
+          never just "AI", "cloud", "IoT", "data" or "digital tools"
+Shape: "<buyer> <verb-ing> <use case> with <technology>" (or "... in/on/over
+<technology>"). Return the exact words of the title that name the use case as
+"use_case_phrase" and the technology as "technology_phrase"; both must appear in
+the title word for word.
+
+Good titles name the BUYER first, then the USE CASE and the outcome, then the
+TECHNOLOGY. They carry a "why now" (the trigger: a regulation, a deadline, a
+tender, an incident) and a "who signs" (the role that owns the budget):
 {positives}
 
 These fail and must never be emitted:
@@ -149,7 +171,8 @@ TITLE RULES — a title that breaks one is sent back, then dropped:
   * No hedges: never "can", "could", "may", "helps to".
   * At most one abstract word such as resilient, governed, trusted, sovereign,
     scalable, secure; "under ... control" counts as one.
-  * At most 18 words.
+  * At most 22 words.
+  * The use case and the technology are both in the title (see above).
 
 WHY NOW must be an EVENT with a date or a name, taken from the evidence: a
 regulation coming into force, a deadline, a named tender, an incident, a funding
@@ -207,8 +230,10 @@ OUTPUT — a single JSON object:
       "vertical": "<vertical id>",
       "use_case": "<use case id>",
       "technology": "<technology id>",
-      "statement": "<the title: buyer and outcome first, at most 18 words, no hedges>",
+      "statement": "<the title: buyer, use case, technology; at most 22 words, no hedges>",
       "buyer": "<the concrete customer type, e.g. 'regional hospital groups'>",
+      "use_case_phrase": "<the words of the title that name the concrete use case>",
+      "technology_phrase": "<the words of the title that name the concrete technology>",
       "why_now": "<the dated or named event that makes it urgent now, under 100 characters, from the evidence>",
       "outcome": "<the business result the buyer gets, one short phrase>",
       "orange_angle": "<why Orange Business specifically, one short phrase>",
@@ -370,6 +395,9 @@ your per-test judgements — one failure caps the whole score.
      "the public sector", "growing demand" and "digital transformation" fail.
   H. DISTINCT FROM THE RADAR. The NEIGHBOURING SPACES listed are the closest
      ones already on the radar. If this is one of them reworded, fail.
+  I. TITLE ALONE. Cover everything but the title. Can you say WHO buys, WHAT
+     concrete use case, and WITH WHICH concrete technology — each narrower than
+     its taxonomy label? If any of the three is missing or only a label, fail.
 
 Scoring anchors:
   5 — as good as the client's own worked examples; ship it
@@ -383,7 +411,8 @@ Return JSON:
 {{"score": 1-5, "verdict": "accept"|"revise"|"reject",
   "issues": ["<specific, actionable>", ...],
   "revised_statement": "<only if verdict is revise: a sharper title that obeys every
-                        title rule; else null>",
+                        title rule and keeps the use_case_phrase and technology_phrase
+                        word for word; else null>",
   "revised_why_now": "<only if you revised and the why-now should change; else null>",
   "revised_who_signs": "<only if you revised and the who-signs should change; else null>"}}"""
 
@@ -481,8 +510,9 @@ def format_candidate_for_critic(candidate: dict[str, Any], evidence: list[dict[s
         "CANDIDATE",
         json.dumps(
             {k: candidate.get(k) for k in
-             ("vertical", "use_case", "technology", "statement", "buyer", "why_now", "outcome",
-              "orange_angle", "who_signs", "why_hot", "why_specific")},
+             ("vertical", "use_case", "technology", "statement", "buyer", "use_case_phrase",
+              "technology_phrase", "why_now", "outcome", "orange_angle", "who_signs", "why_hot",
+              "why_specific")},
             ensure_ascii=False, indent=2,
         ),
         "",
@@ -1614,7 +1644,8 @@ EVERY problem. Use only facts from the evidence. Keep the same opportunity — d
 not change the vertical, use case or technology.
 
 Return JSON:
-{{"statement": "<new title>", "buyer": "<buyer>", "why_now": "<why now>",
+{{"statement": "<new title>", "buyer": "<buyer>", "use_case_phrase": "<use case words in the title>",
+  "technology_phrase": "<technology words in the title>", "why_now": "<why now>",
   "outcome": "<outcome>", "orange_angle": "<Orange's angle>", "who_signs": "<who signs>"}}"""
 
 
@@ -1622,8 +1653,9 @@ def format_for_sharpen(candidate: dict[str, Any], evidence: list[dict[str, Any]]
     lines = [
         "CANDIDATE",
         json.dumps({k: candidate.get(k) for k in
-                    ("vertical", "use_case", "technology", "statement", "buyer", "why_now", "outcome",
-                     "orange_angle", "who_signs", "why_hot")}, ensure_ascii=False, indent=2),
+                    ("vertical", "use_case", "technology", "statement", "buyer", "use_case_phrase",
+                     "technology_phrase", "why_now", "outcome", "orange_angle", "who_signs", "why_hot")},
+                   ensure_ascii=False, indent=2),
         "",
         "PROBLEMS TO FIX:",
         *[f"  - {i}" for i in issues],
@@ -1656,6 +1688,9 @@ def rewrite_system_prompt(cfg: Config) -> str:
 
 You are sharpening an opportunity space that is ALREADY on the radar. Its
 taxonomy cell (vertical x use case x technology) is fixed and must not change.
+The current title is too general: someone reading only the title cannot tell
+which buyer, which concrete use case and which concrete technology it is about.
+The new title must make all three explicit, each narrower than its label.
 Rewrite its title and the parts the title is built from, using ONLY the evidence
 given — you are reorganising evidence, not recalling what you know.
 
@@ -1665,6 +1700,9 @@ If the evidence is too thin or too general to support a specific title, say so
 with "too_generic": true and give your best attempt anyway.
 
 Return JSON:
-{{"statement": "<new title>", "buyer": "<buyer>", "why_now": "<why now, from the evidence>",
+{{"statement": "<new title>", "buyer": "<buyer>",
+  "use_case_phrase": "<the words of the title naming the concrete use case>",
+  "technology_phrase": "<the words of the title naming the concrete technology>",
+  "why_now": "<why now, from the evidence>",
   "outcome": "<outcome>", "orange_angle": "<Orange's angle>", "who_signs": "<who signs>",
   "too_generic": false, "note": "<one line on what you changed and why>"}}"""

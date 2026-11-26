@@ -82,7 +82,11 @@ curation:
   # one is sent back to the model once, then dropped.
   specificity:
     enabled: true
-    max_title_words: 18
+    # 22 (was 18): the title now names the use case and the technology too.
+    max_title_words: 22
+    # The title alone must answer vertical x use case x technology: the use
+    # case and a concrete technology must both appear in it (2026-11-25).
+    require_triple: true
     max_filler_words: 1
     max_why_now_chars: 150
     max_who_signs_chars: 70
