@@ -22,7 +22,10 @@ import hashlib
 import json
 import logging
 import os
+import re
+import threading
 import time
+from collections import deque
 from dataclasses import dataclass, field
 from typing import Any
 
@@ -51,8 +54,21 @@ class LLMResponse:
     raw: Any = field(default=None, repr=False)
 
     def json(self) -> Any:
-        """Parse the response as JSON, tolerating a markdown code fence."""
-        text = self.text.strip()
+        """Parse the response as JSON, tolerating what models wrap around it.
+
+        With JSON mode on, the provider guarantees a bare object. With it off
+        (RADAR_LLM_JSON_MODE=0, for endpoints whose JSON mode is broken), the
+        prompt still asks for JSON but the model may add a markdown fence, a
+        `<think>` block (Qwen3 and other reasoning models) or a sentence of
+        preamble. Those are stripped, and the first complete object is parsed.
+
+        "First complete object", not "first `{` to last `}`": deepseek-chat
+        sometimes finishes the object and then keeps writing — a second object,
+        a closing fence, a note — and the span to the last brace then contains
+        two documents ("Extra data", seen on description generation
+        2026-11-27). raw_decode stops where the first object ends.
+        """
+        text = _THINK_BLOCK.sub("", self.text).strip()
         if text.startswith("```"):
             text = text.split("\n", 1)[1] if "\n" in text else text
             if text.rstrip().endswith("```"):
@@ -60,7 +76,74 @@ class LLMResponse:
         try:
             return json.loads(text)
         except json.JSONDecodeError as exc:
+            start = text.find("{")
+            if start >= 0:
+                try:
+                    value, _ = json.JSONDecoder().raw_decode(text, start)
+                    return value
+                except json.JSONDecodeError:
+                    pass
             raise LLMError(f"Model did not return valid JSON: {exc}\n---\n{self.text[:800]}") from exc
+
+
+#: How many 429s one call will wait out before it is reported as failed.
+_MAX_RATE_LIMIT_WAITS = 8
+
+_THINK_BLOCK = re.compile(r"<think>.*?</think>", re.S | re.I)
+
+
+def _env_flag(name: str, default: bool) -> bool:
+    value = os.getenv(name)
+    if value is None or not value.strip():
+        return default
+    return value.strip().lower() not in ("0", "false", "no", "off")
+
+
+class _RateLimiter:
+    """Requests-per-minute ceiling shared by every client in the process.
+
+    Synthesis runs clusters and passes concurrently, and every LLMClient the
+    API or CLI builds talks to the same endpoint, so the limit has to be
+    process-wide: a per-client limiter would let four clients each spend the
+    whole budget. A sliding one-minute window, because that is how providers
+    count ("60 requests/min") — a token bucket refilled per second would still
+    allow a burst the provider rejects.
+    """
+
+    def __init__(self) -> None:
+        self._lock = threading.Lock()
+        self._sent: deque[float] = deque()
+
+    def acquire(self, rpm: int) -> None:
+        if rpm <= 0:
+            return
+        while True:
+            with self._lock:
+                now = time.monotonic()
+                while self._sent and now - self._sent[0] >= 60.0:
+                    self._sent.popleft()
+                if len(self._sent) < rpm:
+                    self._sent.append(now)
+                    return
+                wait = 60.0 - (now - self._sent[0]) + 0.05
+            time.sleep(wait)
+
+
+_RATE_LIMITER = _RateLimiter()
+
+
+def _is_rate_limited(exc: Exception) -> bool:
+    return getattr(exc, "status_code", None) == 429 or "429" in str(exc)[:40]
+
+
+def _retry_after(exc: Exception) -> float | None:
+    response = getattr(exc, "response", None)
+    headers = getattr(response, "headers", None) or {}
+    try:
+        value = headers.get("retry-after")
+        return float(value) if value is not None else None
+    except (TypeError, ValueError):
+        return None
 
 
 def _is_reasoning_model(model: str) -> bool:
@@ -89,6 +172,19 @@ class LLMClient:
         self.max_retries = max_retries
         self.strong_model = strong_model or os.getenv("RADAR_LLM_MODEL_STRONG", "deepseek-chat")
         self.cheap_model = cheap_model or os.getenv("RADAR_LLM_MODEL_CHEAP", "deepseek-chat")
+        # Endpoint quirks, set beside the endpoint in .env rather than in
+        # settings.yaml, because they belong to the provider, not the radar.
+        # JSON mode: some OpenAI-compatible servers implement response_format
+        # with constrained decoding that steers small models to the shortest
+        # valid object — `{"candidates": []}` in 7 tokens, every time (seen
+        # with qwen-fast, 2026-11-26). Off means the prompt alone asks for JSON
+        # and LLMResponse.json() tolerates fences and <think> blocks.
+        self.json_mode = _env_flag("RADAR_LLM_JSON_MODE", True)
+        # Provider rate limit in requests per minute; 0 = unlimited.
+        try:
+            self.max_rpm = int(os.getenv("RADAR_LLM_MAX_RPM", "0") or 0)
+        except ValueError:
+            self.max_rpm = 0
         self.calls = 0
         self.prompt_tokens = 0
         self.completion_tokens = 0
@@ -146,11 +242,18 @@ class LLMClient:
         else:
             kwargs["temperature"] = temperature
             kwargs["max_tokens"] = max_tokens
-        if json_mode:
+        if json_mode and self.json_mode:
             kwargs["response_format"] = {"type": "json_object"}
 
         last_error: Exception | None = None
-        for attempt in range(self.max_retries + 1):
+        # A rate-limit refusal is not a failure of the request, so it does not
+        # spend one of the request's retries: it waits and goes again, up to a
+        # ceiling, so a saturated endpoint slows a run down instead of turning
+        # into "LLM call failed" and silently dropping a synthesis pass.
+        rate_limited = 0
+        attempt = 0
+        while attempt <= self.max_retries:
+            _RATE_LIMITER.acquire(self.max_rpm)
             try:
                 started = time.monotonic()
                 resp = self._client.chat.completions.create(**kwargs)
@@ -178,11 +281,19 @@ class LLMClient:
                 )
             except Exception as exc:  # noqa: BLE001 — provider SDKs raise varied types
                 last_error = exc
+                if _is_rate_limited(exc) and rate_limited < _MAX_RATE_LIMIT_WAITS:
+                    rate_limited += 1
+                    wait = _retry_after(exc) or min(60.0, 5.0 * rate_limited)
+                    log.info("LLM endpoint rate-limited (429); waiting %.0fs (%d/%d)",
+                             wait, rate_limited, _MAX_RATE_LIMIT_WAITS)
+                    time.sleep(wait)
+                    continue
                 if attempt < self.max_retries:
                     backoff = 2 ** attempt
                     log.warning("LLM call failed (attempt %d/%d): %s — retrying in %ds",
                                 attempt + 1, self.max_retries + 1, exc, backoff)
                     time.sleep(backoff)
+                attempt += 1
         raise LLMError(f"LLM call failed after {self.max_retries + 1} attempts: {last_error}") from last_error
 
     def complete_json(self, system: str, user: str, **kwargs) -> Any:

@@ -16,7 +16,7 @@ from typing import Any
 
 from ..config import Config
 
-PROMPT_VERSION_SYNTHESIS = "synth-v3"
+PROMPT_VERSION_SYNTHESIS = "synth-v4"
 PROMPT_VERSION_CRITIC = "critic-v3"
 PROMPT_VERSION_SHARPEN = "sharpen-v2"
 PROMPT_VERSION_SAME = "same-opportunity-v1"
@@ -189,6 +189,30 @@ The test: could a salesperson open a customer meeting on Thursday with this
 sentence, and would the customer know it was about them?"""
 
 
+def _quantity_rule(cfg: Config) -> str:
+    """Rule 5: may a pass return nothing?
+
+    "An empty list is a valid and often correct answer" suits a strong model,
+    which drafts anyway when the evidence supports something. A small model
+    reads it as the safe way out of a long list of rules that "invalidate the
+    candidate" and takes it every time: qwen-fast returned `{"candidates": []}`
+    on every cluster (2026-11-26) and drafted two or three grounded candidates
+    once this rule asked for at least one. Quality does not rest on this rule —
+    the critic, the title lint and entailment all run after it — so asking for
+    drafts moves the filtering to the stages built for it.
+    """
+    minimum = int(cfg.settings["curation"].get("min_candidates_per_pass", 0) or 0)
+    if minimum <= 0:
+        return ("5. FEWER, BETTER. Produce only candidates the evidence genuinely supports. An\n"
+                "   empty list is a valid and often correct answer.")
+    return (f"5. DRAFT, A REVIEWER FILTERS. Return between {minimum} and 3 candidates: the most\n"
+            "   specific opportunity spaces this evidence supports, best first. Every\n"
+            "   candidate is reviewed against these rules and weak ones are dropped, so do\n"
+            "   not return an empty list, unless the request below explicitly allows it.\n"
+            "   Never invent a fact to fill it: a thin candidate is merely rejected, an\n"
+            "   invented one is a defect.")
+
+
 def synthesis_system_prompt(cfg: Config) -> str:
     """The core synthesis prompt (§4.4.2)."""
     return f"""MOCK_KIND=synthesis
@@ -220,8 +244,10 @@ ABSOLUTE RULES — violating any of these invalidates the candidate
 4. NO NUMBERS. Never state a market size, growth rate, percentage or monetary
    value. If the evidence contains one, you may cite the signal, but express the
    magnitude qualitatively.
-5. FEWER, BETTER. Produce only candidates the evidence genuinely supports. An
-   empty list is a valid and often correct answer.
+{_quantity_rule(cfg)}
+6. EXAMPLES SHOW THE FORM, NOT THE CONTENT. Never reuse a GOOD example's buyer,
+   use case, technology or wording. They are not evidence and a candidate that
+   echoes one is rejected.
 
 OUTPUT — a single JSON object:
 {{
@@ -570,6 +596,13 @@ def description_system_prompt(cfg: Config) -> str:
     were fact.
     """
     sections = "\n".join(f"  - {name}: {guidance}" for name, guidance in DESCRIPTION_SECTIONS.items())
+    # Every section key spelled out, not one `"<section name>": {...}` template:
+    # deepseek-chat (2026-11-27) read the template loosely and wrote each
+    # section as a bare string, which the validator then dropped as missing.
+    section_shape = ",\n".join(
+        f'    "{name}": {{{{"text": "<prose, 2-5 sentences>", "signals": ["SIG-...", ...]}}}}'
+        for name in DESCRIPTION_SECTIONS
+    )
     return f"""{orange_context_block(cfg)}
 
 YOUR TASK
@@ -613,7 +646,7 @@ ABSOLUTE RULES — a violation invalidates the section
 OUTPUT — a single JSON object:
 {{
   "sections": {{
-    "<section name>": {{"text": "<prose, 2-5 sentences>", "signals": ["SIG-...", ...]}}
+{section_shape}
   }},
   "qualifying_questions": ["<question>", ...],
   "objection_handling": [{{"objection": "<what they will say>", "response": "<answer>"}}],
@@ -628,6 +661,9 @@ OUTPUT — a single JSON object:
   }},
   "entities_named": ["<every organisation you named, verbatim>"]
 }}
+
+Every one of the {len(DESCRIPTION_SECTIONS)} sections is an OBJECT with a `text` string and a
+`signals` array (empty where no citation is required) — never a bare string.
 
 `entities_named` is validated against the supplied lists. Naming something that
 was not supplied causes that section to be dropped, so name nothing you were not

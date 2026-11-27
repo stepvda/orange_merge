@@ -167,6 +167,7 @@ export const api = {
       horizon: filters.horizon,
       competition: filters.competition,
       has_brief: filters.has_brief ? 'true' : undefined,
+      hide_evidence_gap: filters.hide_evidence_gap ? 'true' : undefined,
       q: filters.q || undefined,
     }),
 

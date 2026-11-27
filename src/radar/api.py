@@ -437,6 +437,7 @@ def view(
     state: list[str] | None = Query(None),
     competition: list[str] | None = Query(None),
     has_brief: bool = Query(False),
+    hide_evidence_gap: bool = Query(False),
     q: str | None = Query(None),
     limit: int | None = Query(None),
     sort: str = Query(DEFAULT_SORT),
@@ -453,7 +454,8 @@ def view(
             ("vertical", vertical), ("domain", domain), ("svp", svp), ("persona", persona),
             ("geography", geography), ("market_cluster", market_cluster),
             ("horizon", horizon), ("state", state),
-            ("competition", competition), ("has_brief", has_brief or None), ("q", q),
+            ("competition", competition), ("has_brief", has_brief or None),
+            ("hide_evidence_gap", hide_evidence_gap or None), ("q", q),
         )
         if value
     }

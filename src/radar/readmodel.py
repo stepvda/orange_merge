@@ -332,6 +332,9 @@ class ReadModel:
             "links": typed_links,                              # FR-29, LK-08
             "evidence_gap_warning": evidence_gap,              # SC-13
             "reference_density": rtw_inputs.get("reference_density", {}),
+            # The one figure from reference_density the list row shows, kept
+            # out of the detail-only trim so the row can say "only N evidence".
+            "reference_count": (rtw_inputs.get("reference_density") or {}).get("published_story_count", 0),
             "critic_score": topic["critic_score"],
             "first_seen": topic["first_seen"],
             "last_refresh": topic["last_refresh"],             # FR-19
@@ -808,6 +811,9 @@ def _matches(topic: dict[str, Any], filters: dict[str, Any]) -> bool:
         if level not in levels:
             return False
     if filters.get("has_brief") and not topic.get("has_brief"):
+        return False
+    # The radar's `!` markers: too few published references in the vertical.
+    if filters.get("hide_evidence_gap") and topic.get("evidence_gap_warning"):
         return False
     if query := filters.get("q"):
         needle = str(query).lower()

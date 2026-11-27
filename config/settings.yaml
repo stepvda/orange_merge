@@ -121,6 +121,13 @@ curation:
     - "automation"
   # Over-produce then keep the best (§4.4.3 diversity by construction).
   candidates_per_cluster: 3
+  # Least candidates each synthesis pass is asked to draft. 0 keeps the
+  # original rule ("an empty list is a valid and often correct answer"), which
+  # suits a strong model. A small model (qwen-fast, 2026-11-26) takes that as
+  # the safe way out and returns nothing on every cluster; 1 asks it to draft
+  # and leaves the filtering to the critic, title lint and entailment, which
+  # run unchanged. Harmless with a strong model, which drafts anyway.
+  min_candidates_per_pass: 1
   # Raised from 3 on 2026-11-25: the rubric defines 3 as "the statement is
   # vague", and 20 of the first 75 spaces were accepted at 3.
   critic_min_score: 4   # of 5; a revised title is re-judged once, then dropped
@@ -243,7 +250,10 @@ llm:
   # Clusters synthesised concurrently. Each cluster issues candidates_per_cluster
   # generation calls plus a critic and entailment call per candidate, so this
   # multiplies into real concurrency against the provider — raise with care.
-  max_parallel_clusters: 4
+  # Lowered from 4 on 2026-11-26: 4 clusters x 3 passes outran a 60 requests/
+  # minute endpoint and passes failed on 429s. The hard ceiling is
+  # RADAR_LLM_MAX_RPM in .env (radar.llm), which every call respects.
+  max_parallel_clusters: 2
 
 # ---- Competitor profiling (§4.3.3 extension).
 #

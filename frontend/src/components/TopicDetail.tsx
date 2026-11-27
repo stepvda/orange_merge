@@ -94,8 +94,9 @@ function dedupeClaims(claims: { claim: string; signals: string[] }[]) {
   return [...byKey.values()]
 }
 
-/** Sections shown only to admins: the scores and the market figures. */
-const ADMIN_SECTIONS = new Set(['market', 'competition', 'score'])
+/** Sections shown only to admins: the scores, the market figures, and the
+ *  internal working (buyers, assets, next action, workflow). */
+const ADMIN_SECTIONS = new Set(['market', 'competition', 'score', 'value', 'assets', 'action', 'workflow'])
 
 const SECTIONS: { id: string; label: string }[] = [
   { id: 'why-hot', label: 'Why now' },
@@ -155,6 +156,8 @@ export default function TopicDetail({ topicId, meta, rank, workflowMeta, onChang
   const jumpTo = (sectionId: string) => {
     const target = document.getElementById(`section-${sectionId}`)
     if (!target) return
+    // A collapsed section has nothing to land on: open it before measuring.
+    if (target instanceof HTMLDetailsElement) target.open = true
     const pane = scrollParent(target)
     // The jump bar is sticky, so the target has to clear it or the heading lands
     // underneath the thing that sent you there.
@@ -206,13 +209,13 @@ export default function TopicDetail({ topicId, meta, rank, workflowMeta, onChang
       <div style={{ display: 'flex', gap: 8, alignItems: 'baseline', marginBottom: 8, flexWrap: 'wrap' }}>
         <SvpBadge topic={topic} detailed />
         <span className="badge">{topic.id}</span>
-        <span className="badge">{topic.state}</span>
-        {onHelp && <HelpButton topic="lifecycle" onOpen={onHelp} />}
+        {isAdmin && <span className="badge">{topic.state}</span>}
+        {isAdmin && onHelp && <HelpButton topic="lifecycle" onOpen={onHelp} />}
         {topic.horizon && <span className={`badge ${topic.horizon === 'now' ? 'now' : ''}`}>{topic.horizon.toUpperCase()}</span>}
-        <span className="badge" title="Portfolio distance — shortest path to a deliverable configuration (§4.5.3)">
+        {isAdmin && <span className="badge" title="Portfolio distance — shortest path to a deliverable configuration (§4.5.3)">
           L{topic.portfolio_distance}
-        </span>
-        {onHelp && <HelpButton topic="portfolio_distance" onOpen={onHelp} />}
+        </span>}
+        {isAdmin && onHelp && <HelpButton topic="portfolio_distance" onOpen={onHelp} />}
       </div>
 
       <p className="detail-statement">{topic.statement}</p>
@@ -275,7 +278,7 @@ export default function TopicDetail({ topicId, meta, rank, workflowMeta, onChang
         </div>
       </dl>}
 
-      {topic.next_action && (
+      {isAdmin && topic.next_action && (
         <div className="action-card action-lead">
           <div className="action-role">Do this next</div>
           {topic.next_action}
@@ -297,14 +300,15 @@ export default function TopicDetail({ topicId, meta, rank, workflowMeta, onChang
       </nav>
 
       {topic.evidence_gap_warning && (
-        <div className="warning-box">
-          <span aria-hidden>⚠</span>
+        <div className="note-box">
+          <span aria-hidden>ⓘ</span>
           <span>
-            <b>Evidence gap.</b>{onHelp && <HelpButton topic="evidence_gap" onOpen={onHelp} />}{' '}
+            <b>Only {topic.reference_density?.published_story_count ?? 0} evidence found.</b>
+            {onHelp && <HelpButton topic="evidence_gap" onOpen={onHelp} />}{' '}
             {topic.reference_density?.published_story_count ?? 0} published reference
             {topic.reference_density?.published_story_count === 1 ? '' : 's'} in{' '}
-            {topic.labels.vertical}, below the threshold of {topic.reference_density?.threshold ?? '?'}.
-            A customer conversation here has no proof point behind it.
+            {topic.labels.vertical}, where {topic.reference_density?.threshold ?? '?'} would give a
+            customer conversation a proof point to lean on.
           </span>
         </div>
       )}
@@ -366,8 +370,8 @@ export default function TopicDetail({ topicId, meta, rank, workflowMeta, onChang
               Generated with the description, surfaced separately: a question you
               can ask on Thursday is a different artefact from a page you read. */}
       {(topic.description?.qualifying_questions?.length || topic.description?.objection_handling?.length) ? (
-        <div className="detail-section" id="section-questions">
-          <h4><IconChat />Questions to ask, objections to expect</h4>
+        <details className="detail-section collapsible-section" id="section-questions">
+          <summary><h4><IconChat />Questions to ask, objections to expect</h4></summary>
           {topic.description?.qualifying_questions?.length ? (
             <ol className="qa-list">
               {topic.description.qualifying_questions.map((question, index) => (
@@ -381,7 +385,7 @@ export default function TopicDetail({ topicId, meta, rank, workflowMeta, onChang
               <div style={{ fontSize: 12.3, color: 'var(--text-secondary)' }}>{entry.response}</div>
             </div>
           ))}
-        </div>
+        </details>
       ) : null}
 
       {/* --- the generated long-form description (FR-14, FR-18) --- */}
@@ -400,7 +404,7 @@ export default function TopicDetail({ topicId, meta, rank, workflowMeta, onChang
       </div>
 
       {/* --- where it delivers value and for whom --- */}
-      <div className="detail-section" id="section-value">
+      {isAdmin && <div className="detail-section" id="section-value">
         <h4><IconPeople />Where it delivers value, and for whom</h4>
         {/* Three different dimensions were rendered as one undifferentiated
             strip of pills: a reader could not tell a business domain from a
@@ -430,10 +434,10 @@ export default function TopicDetail({ topicId, meta, rank, workflowMeta, onChang
             </span>
           </div>
         ))}
-      </div>
+      </div>}
 
       {/* --- can we play / can we win (FR-15, FR-29, LK-08) --- */}
-      <div className="detail-section" id="section-assets">
+      {isAdmin && <div className="detail-section" id="section-assets">
         <h4><IconCube />Can we play, can we win{onHelp && <HelpButton topic="links" onOpen={onHelp} />}</h4>
         {topic.links.length === 0 && (
           <div style={{ color: 'var(--text-muted)' }}>No linked assets — white space.</div>
@@ -487,7 +491,7 @@ export default function TopicDetail({ topicId, meta, rank, workflowMeta, onChang
               </div>
             )
           })}
-      </div>
+      </div>}
 
       {/* --- score breakdown, expanded (NFR-01, §4.9) --- */}
       {isAdmin && <div className="detail-section" id="section-score">
@@ -512,34 +516,34 @@ export default function TopicDetail({ topicId, meta, rank, workflowMeta, onChang
           <b>{topic.horizon?.toUpperCase() ?? '—'}</b>{' '}
           <span style={{ color: 'var(--text-muted)' }}>derived, not judged — basis: {topic.horizon_basis}</span>
         </div>
-        <div style={{ fontSize: 11.5, color: 'var(--text-muted)', marginTop: 4 }}>
+        {isAdmin && <div style={{ fontSize: 11.5, color: 'var(--text-muted)', marginTop: 4 }}>
           Lifecycle: {topic.state} — {topic.state_reason}
-        </div>
+        </div>}
       </div>
 
       {/* --- next action (FR-17, AC-03) --- */}
-      <div className="detail-section" id="section-action">
+      {isAdmin && <div className="detail-section" id="section-action">
         <h4><IconTarget />Next action</h4>
         {topic.next_action
           ? <div className="action-card own">{topic.next_action}</div>
           : <div style={{ color: 'var(--text-muted)' }}>No next action generated yet.</div>}
-      </div>
+      </div>}
 
       {/* --- collaboration workflow (FR-25, §4.10) --- */}
       {workflowMeta && (
         <>
-          <div className="detail-section" id="section-workflow">
+          {isAdmin && <div className="detail-section" id="section-workflow">
             <h4><IconBoard />Workflow{onHelp && <HelpButton topic="workflow" onOpen={onHelp} />}</h4>
             <StageControl topic={topic} meta={workflowMeta} onMoved={reload} />
-          </div>
+          </div>}
 
-          <div className="detail-section">
+          {isAdmin && <div className="detail-section">
             <h4><IconVoices />Team conviction{onHelp && <HelpButton topic="conviction" onOpen={onHelp} />}</h4>
             <ConvictionPanel topic={topic} />
             <div style={{ marginTop: 10 }}>
               <AssessmentWidget topic={topic} meta={workflowMeta} onSubmitted={reload} onHelp={onHelp} />
             </div>
-          </div>
+          </div>}
         </>
       )}
 

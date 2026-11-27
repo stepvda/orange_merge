@@ -244,6 +244,15 @@ export default function Filters({ meta, filters, onChange, geographies, marketCl
           counts={facets.geography}
         />
       )}
+
+      <div className="filter-group">
+        <label className="filter-item"
+               title="Hide the spaces marked ! on the radar: too few published Orange references in their vertical">
+          <input type="checkbox" checked={filters.hide_evidence_gap}
+                 onChange={() => onChange({ ...filters, hide_evidence_gap: !filters.hide_evidence_gap })} />
+          <span>Hide &lt;5 evidence</span>
+        </label>
+      </div>
     </>
   )
 }

@@ -435,6 +435,8 @@ export interface Topic {
   links: TopicLink[]
   evidence_gap_warning: boolean
   reference_density: Record<string, any>
+  /** Published references in the vertical; present on list rows too. */
+  reference_count?: number
   critic_score: number | null
   first_seen: string
   last_refresh: string
@@ -506,12 +508,14 @@ export type FilterState = {
   competition: string[]
   /** FR-18 — "what can I actually take to a meeting tomorrow". */
   has_brief: boolean
+  /** Hide spaces with too few published references (the radar's `!`). On by default. */
+  hide_evidence_gap: boolean
   q: string
 }
 
 export const EMPTY_FILTERS: FilterState = {
   vertical: [], domain: [], svp: [], persona: [], geography: [], market_cluster: [], horizon: [],
-  competition: [], has_brief: false, q: '',
+  competition: [], has_brief: false, hide_evidence_gap: true, q: '',
 }
 
 /** Orderings the API offers. Attractiveness is the default. */

@@ -89,6 +89,43 @@ _NUMERIC_CLAIM_RE = re.compile(
 )
 
 
+# Example echo (2026-11-26). The prompt shows six GOOD titles with their why-now
+# and who-signs. A small model copies them: qwen-fast produced "Retail banks
+# detecting branch WAN attacks with SD-WAN telemetry fed into a SOC" with the
+# example's DORA why-now from a student paper on firewalls, and reused the
+# SecNumCloud why-now verbatim on a generic RAG survey — and its own critic
+# scored both 5/5. The prompt forbids it (rule 6); this makes it a rule a model
+# cannot talk its way past, like the numeric regex above.
+_ECHO_WORD_RE = re.compile(r"[a-z0-9]+")
+_ECHO_STOPWORDS = frozenset(
+    "a an and at by for from in into of on or over the to under with".split())
+#: Word overlap at which a title is a reworded example rather than a new one.
+#: Distinct titles that share a buyer type sit near 0.2; the echoes seen in the
+#: wild were 0.6 and above.
+_ECHO_TITLE_OVERLAP = 0.5
+#: A why-now is short, so it has to be nearly the same sentence to count.
+_ECHO_WHY_NOW_OVERLAP = 0.7
+
+
+def _echo_words(text: str) -> set[str]:
+    return {w for w in _ECHO_WORD_RE.findall((text or "").lower()) if w not in _ECHO_STOPWORDS}
+
+
+def _overlap(a: set[str], b: set[str]) -> float:
+    return len(a & b) / len(a | b) if a and b else 0.0
+
+
+def example_echo(statement: str, why_now: str) -> str | None:
+    """The reason a candidate is a copy of a prompt example, or None."""
+    title, trigger = _echo_words(statement), _echo_words(why_now)
+    for example in prompts.POSITIVE_EXAMPLES:
+        if _overlap(title, _echo_words(example["statement"])) >= _ECHO_TITLE_OVERLAP:
+            return f"title echoes the prompt example \"{example['statement']}\""
+        if _overlap(trigger, _echo_words(example["why_now"])) >= _ECHO_WHY_NOW_OVERLAP:
+            return f"why-now echoes the prompt example \"{example['why_now']}\""
+    return None
+
+
 #: How a requested HORIZON maps onto the evidence that derives it (§4.8).
 #:
 #: `derive_horizon` reads signal types, so a horizon constraint cannot be
@@ -1371,6 +1408,10 @@ class Synthesiser:
             stats.failed_specificity += 1
             stats.rejections.append({"statement": statement, "reason": "banned generic statement"})
             return False
+        if echo := example_echo(statement, candidate.why_now or ""):
+            stats.failed_specificity += 1
+            stats.rejections.append({"statement": statement, "reason": echo})
+            return False
 
         # Not something Orange Business already sells (data/portfolio.json).
         # Checked before evidence binding and the critic: a restated offer is
@@ -1498,17 +1539,32 @@ class Synthesiser:
 
         def judge() -> dict[str, Any] | None:
             user = prompts.format_candidate_for_critic(candidate.__dict__, payload["signals"], neighbours)
-            try:
-                return self.llm.complete_json(
-                    system, user, strong=True, temperature=self.critic_temperature, max_tokens=900
-                ) or {}
-            except Exception as exc:  # noqa: BLE001
-                log.warning("Critic pass failed, keeping candidate unjudged: %s", exc)
-                return None
+            # Two tries: the usual failure is a verdict cut off mid-string or
+            # otherwise unparseable, which a second call normally fixes.
+            # 1500 tokens, not 900: a critic listing four issues plus a revised
+            # title, why-now and who-signs ran past 900 and was truncated.
+            for attempt in (1, 2):
+                try:
+                    return self.llm.complete_json(
+                        system, user, strong=True, temperature=self.critic_temperature, max_tokens=1500
+                    ) or {}
+                except Exception as exc:  # noqa: BLE001
+                    log.warning("Critic pass %d failed: %s", attempt, exc)
+            return None
 
         verdict = judge()
         if verdict is None:
-            return True
+            # FAIL CLOSED (2026-11-26). This used to return True — "keeping the
+            # candidate unjudged" — so a broken critic reply was the one path
+            # past the quality gate that no rule looked at: a sovereign-SASE
+            # space reached the radar that way with no score at all. With a
+            # small or rate-limited model that path stops being rare. A
+            # candidate nobody could judge is not one anybody has approved.
+            with guard:
+                stats.failed_critic += 1
+                stats.rejections.append(
+                    {"statement": candidate.statement, "reason": "critic unavailable (no valid verdict)"})
+            return False
         score = int(verdict.get("score", 0) or 0)
 
         # A revision is not accepted on the critic's word: it must obey the
@@ -1530,6 +1586,10 @@ class Synthesiser:
                 if second is not None:
                     verdict = second
                     score = int(second.get("score", 0) or 0)
+                else:
+                    # The revision was never judged, so it is not kept: the
+                    # original title stands with the score it actually got.
+                    candidate.statement, candidate.why_now, candidate.who_signs = before
 
         candidate.critic_score = score
         candidate.critic_notes = "; ".join(str(i) for i in verdict.get("issues", [])[:4])

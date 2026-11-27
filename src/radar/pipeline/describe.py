@@ -44,6 +44,9 @@ from ..llm import LLMClient
 from . import prompts
 from .synthesis import _NUMERIC_CLAIM_RE
 
+#: A signal id written inline in prose (ids are "SIG-" + a hex digest).
+_SIGNAL_ID_RE = re.compile(r"SIG-[0-9A-Fa-f]{6,}")
+
 log = logging.getLogger(__name__)
 
 PROVIDERS = ("orange", "partner", "customer", "third_party")
@@ -146,7 +149,7 @@ class DescriptionGenerator:
                     "technology": self.cfg.technologies.label(topic["technology"]),
                 },
             ),
-            strong=True, temperature=0.35, max_tokens=3000,
+            strong=True, temperature=0.35, max_tokens=8000,
         )
 
         allowed_names = self._allowed_names(assets, competition)
@@ -174,6 +177,13 @@ class DescriptionGenerator:
 
         for name in prompts.DESCRIPTION_SECTIONS:
             entry = raw.get(name)
+            if isinstance(entry, str):
+                # The model wrote the prose without its wrapper object (seen
+                # with deepseek-chat, 2026-11-27). The prose is still usable;
+                # citations are recovered only where it wrote real signal ids
+                # into the text, so a cited section with none is still dropped
+                # below by evidence binding, exactly as before.
+                entry = {"text": entry, "signals": _SIGNAL_ID_RE.findall(entry)}
             if not isinstance(entry, dict):
                 stripped.append({"section": name, "reason": "missing from the model output"})
                 continue

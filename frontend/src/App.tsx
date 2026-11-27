@@ -146,6 +146,8 @@ function initialFromUrl() {
   }
   filters.q = params.get('q') ?? ''
   filters.has_brief = params.get('has_brief') === '1'
+  // On by default, so the URL only records turning it off.
+  filters.hide_evidence_gap = params.get('show_gaps') !== '1'
   return {
     topic: params.get('topic'),
     explain: params.get('explain'),
@@ -365,6 +367,7 @@ function RadarApp({ user, minPasswordLength, onSignedOut, onUserChanged }: Radar
     }
     filters.q ? params.set('q', filters.q) : params.delete('q')
     filters.has_brief ? params.set('has_brief', '1') : params.delete('has_brief')
+    filters.hide_evidence_gap ? params.delete('show_gaps') : params.set('show_gaps', '1')
     const query = params.toString()
     const base = window.location.pathname.replace(/\/?portfolio\/?$/, '') || '/'
     const path = tab === 'portfolio' ? `${base.replace(/\/$/, '')}/portfolio` : base
@@ -930,7 +933,7 @@ function RadarApp({ user, minPasswordLength, onSignedOut, onUserChanged }: Radar
                                     alignItems: 'center' }}>
                         {topic.horizon && <span className={`badge ${topic.horizon === 'now' ? 'now' : ''}`}>{topic.horizon}</span>}
                         <span className="badge">L{topic.portfolio_distance}</span>
-                        <span className="badge">{topic.state}</span>
+                        {isAdmin && <span className="badge">{topic.state}</span>}
                         {topic.market_size_summary && (
                           /* Two methods produce these figures and they are not the
                              same quantity: a bottom-up estimate and an observed
@@ -958,7 +961,12 @@ function RadarApp({ user, minPasswordLength, onSignedOut, onUserChanged }: Radar
                             </span>
                           </span>
                         )}
-                        {topic.evidence_gap_warning && <span className="badge gap">⚠ evidence gap</span>}
+                        {topic.evidence_gap_warning && (
+                          <span className="badge gap"
+                                title={`${topic.reference_count ?? 0} published Orange reference(s) in this vertical`}>
+                            only {topic.reference_count ?? 0} evidence found
+                          </span>
+                        )}
                         {topic.divergence && <span className="badge gap">⚠ review</span>}
                       </div>
                     </div>

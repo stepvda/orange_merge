@@ -567,7 +567,7 @@ body[data-resizing="true"] { cursor: col-resize; user-select: none; }
   border: 1px solid var(--border-strong); color: var(--text-secondary);
   font-family: var(--mono);
 }
-.badge.gap { border-color: var(--status-serious); color: var(--status-serious); }
+.badge.gap { color: var(--text-muted); }
 .badge.now   { border-color: var(--status-good); color: var(--status-good); }
 .badge.explore { border-color: var(--accent); color: var(--accent-text); }
 
@@ -607,6 +607,11 @@ body[data-resizing="true"] { cursor: col-resize; user-select: none; }
   padding-bottom: 5px; border-bottom: 1px solid var(--border);
   display: flex; align-items: center; gap: 6px;
 }
+/* A section folded behind its heading: the heading itself is the toggle. */
+.collapsible-section > summary { list-style: none; cursor: pointer; }
+.collapsible-section > summary::-webkit-details-marker { display: none; }
+.collapsible-section > summary h4::after { content: '▸'; margin-left: auto; }
+.collapsible-section[open] > summary h4::after { content: '▾'; }
 
 /* ---------- section icons ----------
  *
@@ -662,6 +667,15 @@ body[data-resizing="true"] { cursor: col-resize; user-select: none; }
   border: 1px solid var(--status-serious); border-radius: var(--radius-sm);
   padding: 9px 11px; font-size: 12px; margin: 12px 0;
   background: color-mix(in srgb, var(--status-serious) 8%, transparent);
+}
+
+/* Information, not alarm: a thin evidence base is a fact to know, not a fault. */
+.note-box {
+  display: flex; gap: 8px; align-items: flex-start;
+  border: 1px solid var(--border); border-left: 3px solid var(--status-neutral, var(--text-muted));
+  border-radius: var(--radius-sm);
+  padding: 9px 11px; font-size: 12px; margin: 12px 0;
+  color: var(--text-secondary);
 }
 
 .empty { padding: 40px 20px; text-align: center; color: var(--text-muted); font-size: 13px; }
