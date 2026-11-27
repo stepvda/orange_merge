@@ -134,13 +134,14 @@ export default function SpaceFullscreen({
           </button>
         </div>
 
-        <div className="fs-help">
+        {/* Every term here is admin-only now, so the strip is too. */}
+        {isAdmin && <div className="fs-help">
           <span>Help</span>
-          {isAdmin && <HelpButton topic="attractiveness" onOpen={onHelp} label="A" />}
-          {isAdmin && <HelpButton topic="right_to_win" onOpen={onHelp} label="W" />}
+          <HelpButton topic="attractiveness" onOpen={onHelp} label="A" />
+          <HelpButton topic="right_to_win" onOpen={onHelp} label="W" />
           <HelpButton topic="conviction" onOpen={onHelp} label="C" />
           <HelpButton topic="portfolio_distance" onOpen={onHelp} label="L" />
-        </div>
+        </div>}
 
         <button className="fs-exit" ref={closeRef} onClick={onClose}
                 title="Back to the radar (Esc)">

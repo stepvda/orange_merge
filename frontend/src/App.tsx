@@ -1458,11 +1458,14 @@ function RadarApp({ user, minPasswordLength, onSignedOut, onUserChanged }: Radar
               </button>
             )}
             <span className="spacer" />
-            <span style={{ fontSize: 10.5, color: 'var(--text-muted)' }}>Help</span>
-            {isAdmin && <HelpButton topic="attractiveness" onOpen={setHelp} label="A" />}
-            {isAdmin && <HelpButton topic="right_to_win" onOpen={setHelp} label="W" />}
-            <HelpButton topic="conviction" onOpen={setHelp} label="C" />
-            <HelpButton topic="portfolio_distance" onOpen={setHelp} label="L" />
+            {/* Every term here is admin-only now, so the strip is too. */}
+            {isAdmin && <>
+              <span style={{ fontSize: 10.5, color: 'var(--text-muted)' }}>Help</span>
+              <HelpButton topic="attractiveness" onOpen={setHelp} label="A" />
+              <HelpButton topic="right_to_win" onOpen={setHelp} label="W" />
+              <HelpButton topic="conviction" onOpen={setHelp} label="C" />
+              <HelpButton topic="portfolio_distance" onOpen={setHelp} label="L" />
+            </>}
           </div>
           <TopicDetail topicId={selected} meta={meta}
                        workflowMeta={wfMeta}
