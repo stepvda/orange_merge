@@ -26,9 +26,9 @@ CURATED = {
 }
 
 
-def offer(_id, name, lang="en", svp=None, sec=None):
+def offer(_id, name, lang="en", svp=None, sec=None, status="LIVING"):
     return {"_id": _id, "type": "offer", "lang": lang, "updatedAt": "2026-01-01",
-            "contentElement": {"name": name, "headline": f"<p>{name} headline</p>",
+            "contentElement": {"name": name, "headline": f"<p>{name} headline</p>", "saleStatus": status,
                                "strategicValuePropositions": svp, "strategicValuePropositionsSec": sec}}
 
 
@@ -50,6 +50,10 @@ def crawl(tmp_path):
         offer("o-other", "Business VPN", svp=DI_EN),                     # tagged DI, not curated
         offer("o-ox", "Mobile Private Networks", sec=OX_EN),
         offer("o-untagged", "Orphan offer"),
+        # Not sellable: left out whatever their tags.
+        offer("o-canceled", "Withdrawn Offer", svp=DI_EN, status="CANCELED"),
+        offer("o-nostatus", "No Status Offer", svp=DI_EN, status=""),
+        client("c-4", "Lost Customer", ["o-canceled"]),
         client("c-1", "Ville de Paris", ["o-sdwan-fr"]),
         client("c-2", "Acme", ["o-sdwan-en", "o-other"], agreement=True),
         client("c-3", "Nobody", ["unknown-offer"]),
@@ -99,8 +103,9 @@ def test_unclaimed_tagged_offers_go_to_an_other_bucket(crawl):
 def test_store_prefers_crawl_then_snapshot(tmp_path, crawl, monkeypatch):
     curated = tmp_path / "portfolio.yaml"
     curated.write_text(json.dumps(CURATED), encoding="utf-8")  # JSON is valid YAML
-    store = PortfolioStore(crawl, tmp_path / "none.json", curated, crm=tmp_path / "no-crm.json")
-    assert store.get()["counts"]["svps"] == 2 and store.get()["crm"] is None
+    store = PortfolioStore(crawl, tmp_path / "none.json", curated, crm=tmp_path / "no-crm.json",
+                           pipeline=tmp_path / "no-cl.csv")
+    assert store.get()["counts"]["svps"] == 2 and store.get()["crm"] is None and store.get()["pipeline"] is None
 
     snap = tmp_path / "snap.json"
     snap.write_text(json.dumps({"counts": {"svps": 9}}), encoding="utf-8")
@@ -169,6 +174,87 @@ def test_without_crm_nothing_changes(crawl):
     assert build(crawl, curated_with_crm())["crm"] is None
     vp = next(v for v in build(crawl, curated_with_crm())["value_propositions"] if v["id"] == "DI-VP1")
     assert vp["crm_offers"] == []
+
+
+def test_unsellable_sale_statuses_are_excluded(crawl):
+    # MARKETING is kept (most flagship offers carry it); no status and CANCELED are not.
+    (crawl / "contents" / "page2").write_text(json.dumps(
+        [offer("o-marketing", "Marketing Offer", svp=DI_EN, status="MARKETING")]), encoding="utf-8")
+    data = build(crawl, CURATED)
+    names = {o["name"] for o in data["offers"].values()}
+    assert not names & {"Withdrawn Offer", "No Status Offer"}
+    assert "Marketing Offer" in names
+    assert "c-4" not in data["references"]  # its only offer was excluded
+    assert {o["sale_status"] for o in data["offers"].values()} == {"LIVING", "MARKETING"}
+
+
+def test_language_versions_with_different_names_are_one_offer(tmp_path):
+    api = tmp_path / "v1"
+    (api / "contents").mkdir(parents=True)
+
+    def rec(_id, name, lang, history=()):
+        r = offer(_id, name, lang=lang, svp=DI_EN)
+        r["contentElement"]["nameHistory"] = list(history)
+        return r
+
+    records = [
+        # Shared past name across languages: one offer.
+        rec("sat-en", "Satellite (end of sales)", "en", ["Business Satellite"]),
+        rec("sat-fr", "Satellite Pack (fin de vente)", "fr", ["Business Satellite"]),
+        # Same-language template copies share history but are different offers.
+        rec("ls-1", "LS. Audit", "fr", ["Template service", "Template service copie"]),
+        rec("ls-2", "LS. Formation", "fr", ["Template service"]),
+        # A "copie" name shared across languages is not a link either.
+        rec("x-en", "Alpha", "en", ["Draft copie"]),
+        rec("x-fr", "Beta", "fr", ["Draft copie"]),
+        # Curated translation with nothing in common; the French name still matches.
+        rec("ps-en", "Professional Services", "en"),
+        rec("ps-fr", "Services Professionnels", "fr"),
+    ]
+    (api / "contents" / "page1").write_text(json.dumps(records), encoding="utf-8")
+    curated = json.loads(json.dumps(CURATED))
+    curated["offer_translations"] = [["Professional Services", "Services Professionnels"]]
+    curated["svps"][0]["value_propositions"][0]["offers"] = ["Services Professionnels"]
+    data = build(api, curated)
+    by_name = {o["name"]: o for o in data["offers"].values()}
+    assert sorted(by_name) == ["Alpha", "Beta", "LS. Audit", "LS. Formation",
+                               "Professional Services", "Satellite (end of sales)"]
+    assert by_name["Satellite (end of sales)"]["languages"] == ["en", "fr"]
+    vp = next(v for v in data["value_propositions"] if v["id"] == "DI-VP1")
+    assert vp["offers"] == ["ps-en"]
+
+
+CL_CSV = (
+    "Opportunity name,CL link,Account name,Create date,Close date,Stage,Cluster,SVP,Opportunity Domain,"
+    "Partner name,Products Summary,\"TCV, MEUR\",\"Prod TCV, MEUR\"\n"
+    "Acme WAN,https://cl/r/Opportunity/006AAA/view,ACME Ltd,2026-01-02 00:00:00,2027-01-01 00:00:00,"
+    "3 Proposal,NWE,DI,Connectivity,Cisco,\"Flexible SD-WAN (Connectivity, DI): 4.5MEUR\n"
+    "Business VPN Galerie (Connectivity, DI): 1.0MEUR\n"
+    "Withdrawn Offer (Connectivity, DI): 2.0MEUR\",8.00,7.5\n"
+    "Other deal,https://cl/r/Opportunity/006BBB/view,Unknown Corp,2026-02-02 00:00:00,2027-02-01 00:00:00,"
+    "1 Pre-qualification,GEA,OX,IoT & MPN,,,3.00,\n"
+)
+
+
+def test_cl_pipeline_merges_offers_references_and_svps(tmp_path, crawl):
+    from radar.cl_pipeline import parse
+    path = tmp_path / "CL data 27.11.csv"
+    path.write_text(CL_CSV, encoding="utf-8")
+    pl = parse(path)
+    acme = pl["opportunities"]["006AAA"]
+    assert acme["stage"] == "3 Proposal" and acme["close"] == "2027-01-01" and len(acme["products"]) == 3
+
+    data = build(crawl, CURATED, pipeline=pl)
+    sdwan = data["offers"]["o-sdwan-en"]["pipeline"]
+    assert sdwan == {"opportunities": ["006AAA"], "tcv_meur": 4.5, "products": ["Flexible SD-WAN"]}
+    assert data["offers"]["o-other"]["pipeline"]["products"] == ["Business VPN Galerie"]
+    # The reference whose customer is the opportunity's account gets the deal.
+    assert data["references"]["c-2"]["pipeline"] == {"opportunities": ["006AAA"], "tcv_meur": 8.0}
+    di = next(s for s in data["svps"] if s["key"] == "DI")
+    assert di["pipeline"] == {"opportunities": 1, "tcv_meur": 8.0, "by_stage": {"3 Proposal": 1}}
+    assert data["pipeline"]["unmatched_products"] == ["Withdrawn Offer"]  # excluded (CANCELED) offer
+    assert data["counts"]["opportunities"] == 2
+    assert sorted(data["opportunities"]["006AAA"]["offers"]) == ["o-other", "o-sdwan-en"]
 
 
 def test_company_key_ignores_legal_forms():

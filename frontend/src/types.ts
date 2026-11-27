@@ -1117,6 +1117,34 @@ export interface PortfolioSvp {
   summary: string
   value_propositions: string[]
   crm?: PortfolioCrmSvp
+  /** Open opportunities for this SVP in the CL export. */
+  pipeline?: { opportunities: number; tcv_meur: number; by_stage: Record<string, number> }
+}
+
+/** Open opportunities from the CL export, attached to an offer or a reference. */
+export interface PortfolioPipelineLink {
+  opportunities: string[]
+  tcv_meur: number
+  /** On offers: the CL product names matched to the offer. */
+  products?: string[]
+}
+
+export interface PortfolioOpportunity {
+  id: string
+  name: string
+  account: string
+  stage: string
+  created: string | null
+  close: string | null
+  cluster: string
+  svp: string
+  domain: string
+  partner: string
+  tcv_meur: number
+  products: { name: string; family: string; svp: string; tcv_meur: number }[]
+  url: string
+  offers: string[]
+  references: string[]
 }
 
 export interface PortfolioValueProposition {
@@ -1139,12 +1167,15 @@ export interface PortfolioOffer {
   name: string
   headline: string
   languages: string[]
+  /** Expresso saleStatus (LIVING, PILOT, END_ACTUAL, END_IN_PROGRESS). */
+  sale_status?: string
   svps: string[]
   svps_secondary: string[]
   url: string
   references: string[]
   /** CRM catalogue products matched to this offer by name. */
   crm_products?: string[]
+  pipeline?: PortfolioPipelineLink
 }
 
 export interface PortfolioReference {
@@ -1161,6 +1192,7 @@ export interface PortfolioReference {
   offers: string[]
   url: string
   crm?: PortfolioCrmAccount
+  pipeline?: PortfolioPipelineLink
 }
 
 export interface Portfolio {
@@ -1171,6 +1203,19 @@ export interface Portfolio {
   value_propositions: PortfolioValueProposition[]
   offers: Record<string, PortfolioOffer>
   references: Record<string, PortfolioReference>
+  /** Open opportunities from the CL export (data/CL data *.csv), by CL ID. */
+  opportunities?: Record<string, PortfolioOpportunity>
+  excluded_sale_statuses?: string[]
+  pipeline?: {
+    source: string
+    opportunities: number
+    tcv_meur: number
+    offers_matched: number
+    references_matched: number
+    opportunities_with_offer: number
+    opportunities_with_reference: number
+    unmatched_products: string[]
+  } | null
   /** Present when a Salesforce extract was imported (python -m radar.crm). */
   crm?: {
     source: string

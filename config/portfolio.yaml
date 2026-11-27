@@ -13,6 +13,11 @@
 # are placed in that value proposition when they match an Expresso offer by name.
 
 version: 2026-11-v2
+# Language versions of one offer that share neither a current nor a past name in Expresso
+# (records that do are merged automatically). Each entry lists the names of one offer.
+offer_translations:
+- [Professional Services on Evolution Platform, Services Professionnels sur Evolution Platform]
+- [Multisourcing Service Integration, Multisourcing Service Integration (MSI)]
 svps:
 - key: DI
   name: Digital Infrastructure

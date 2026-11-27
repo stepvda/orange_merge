@@ -52,6 +52,10 @@ CURATED_PATH = PROJECT_ROOT / "config" / "portfolio.yaml"
 CRAWL_API = PROJECT_ROOT / "data" / "espresso" / "site" / "expresso.sso.infra.ftgroup" / "api" / "v1"
 SNAPSHOT_PATH = PROJECT_ROOT / "data" / "portfolio.json"
 EXPRESSO = "https://expresso.sso.infra.ftgroup/public"
+# Offer records with these Expresso sale statuses are left out of the portfolio:
+# no status, or withdrawn. (MARKETING is kept: Expresso files most flagship
+# offers, such as Flexible SD-WAN and Business VPN, under it.)
+EXCLUDED_SALE_STATUSES = {"", "CANCELED"}
 
 
 class PortfolioUnavailable(RuntimeError):
@@ -131,17 +135,76 @@ def _crm_account_index(crm: dict[str, Any] | None) -> dict[str, dict[str, Any]]:
     return index
 
 
+_COPY = re.compile(r"(^| )(copie|copy)( |$)")
+
+
+def _language_groups(records: list[dict[str, Any]], translations: list[list[str]]) -> list[list[dict[str, Any]]]:
+    """Group the language versions of one offer. Expresso keeps each language as a
+    separate record with no link between them, so records are one offer when:
+
+    * they have the same name (as before);
+    * they are in different languages and share a current or past name
+      (``nameHistory``), e.g. "Business VPN/Internet Satellite (end of sales ...)"
+      and "Business VPN/Internet Satellite Pack (En fin de vente ...)" were both
+      once "Business VPN/Internet Satellite". Names of template copies ("... copie")
+      are ignored, and so is history shared within one language (copies of a
+      template, not translations);
+    * their names are listed together in ``offer_translations`` (config/portfolio.yaml),
+      for translations with nothing in common.
+    """
+    parent = {r["_id"]: r["_id"] for r in records}
+
+    def find(x: str) -> str:
+        while parent[x] != x:
+            parent[x] = parent[parent[x]]
+            x = parent[x]
+        return x
+
+    def union(a: str, b: str) -> None:
+        parent[find(a)] = find(b)
+
+    current: dict[str, list[dict[str, Any]]] = defaultdict(list)
+    history: dict[str, list[dict[str, Any]]] = defaultdict(list)
+    for r in records:
+        ce = r["contentElement"]
+        current[norm(ce["name"])].append(r)
+        for name in {norm(n) for n in [ce["name"], *(n for n in ce.get("nameHistory") or [] if isinstance(n, str))]}:
+            if name and not _COPY.search(name):
+                history[name].append(r)
+    for rs in current.values():
+        for r in rs[1:]:
+            union(r["_id"], rs[0]["_id"])
+    for rs in history.values():
+        for a in rs:
+            for b in rs:
+                if a.get("lang") != b.get("lang"):
+                    union(a["_id"], b["_id"])
+    for names in translations:
+        ids = [r["_id"] for n in names for r in current.get(norm(n), [])]
+        for i in ids[1:]:
+            union(i, ids[0])
+
+    groups: dict[str, list[dict[str, Any]]] = defaultdict(list)
+    for r in records:
+        groups[find(r["_id"])].append(r)
+    return list(groups.values())
+
+
 CRM_ACCOUNT_FIELDS = ("name", "type", "industry", "region", "country", "segment",
                       "won", "won_tcv_eur", "lost", "open", "open_tcv_eur", "last_won")
 
 
 def build(api_dir: Path = CRAWL_API, curated: dict[str, Any] | None = None,
-          crm: dict[str, Any] | None = None) -> dict[str, Any]:
+          crm: dict[str, Any] | None = None, pipeline: dict[str, Any] | None = None) -> dict[str, Any]:
     """Assemble the hierarchy from the crawl. Pure: reads files, returns a dict.
 
     ``crm`` is the optional Salesforce extract (``radar.crm``): it places offers in
     value propositions by CRM product family, adds account figures to matched
-    customer references, and opportunity figures to the SVPs."""
+    customer references, and opportunity figures to the SVPs.
+
+    ``pipeline`` is the optional CL open-opportunity export (``radar.cl_pipeline``):
+    its products are matched to offers by name, its accounts to customer
+    references by company name, and its totals summed per SVP."""
     from .crm import company_key
     curated = curated or load_curated()
     if not api_dir.is_dir():
@@ -154,16 +217,16 @@ def build(api_dir: Path = CRAWL_API, curated: dict[str, Any] | None = None,
             tag_to_svp[tag] = svp["key"]
 
     # ---------------------------------------------------------------- offers
-    # Merged across languages by normalised name; English supplies the display
-    # record when there is one.
-    groups: dict[str, list[dict[str, Any]]] = defaultdict(list)
-    for rec in by_id.values():
-        if rec.get("type") == "offer" and norm(rec["contentElement"].get("name")):
-            groups[norm(rec["contentElement"]["name"])].append(rec)
+    # Merged across languages; English supplies the display record when there is one.
+    groups = _language_groups(
+        [rec for rec in by_id.values()
+         if rec.get("type") == "offer" and norm(rec["contentElement"].get("name"))
+         and str(rec["contentElement"].get("saleStatus") or "").strip().upper() not in EXCLUDED_SALE_STATUSES],
+        curated.get("offer_translations") or [])
 
     offers: dict[str, dict[str, Any]] = {}
     offer_of_record: dict[str, str] = {}
-    for key, recs in groups.items():
+    for recs in groups:
         recs.sort(key=lambda r: (r.get("lang") != "en", str(r.get("updatedAt") or "")))
         lead = recs[0]
         ce = lead["contentElement"]
@@ -176,11 +239,13 @@ def build(api_dir: Path = CRAWL_API, curated: dict[str, Any] | None = None,
             "name": _plain(ce.get("name"), 160),
             "headline": _plain(ce.get("headline")) or _plain(ce.get("introduction")),
             "languages": sorted({r.get("lang") or "?" for r in recs}),
+            "sale_status": str(ce.get("saleStatus") or "").strip().upper(),
             "svps": sorted(primary),
             "svps_secondary": sorted(secondary - primary),
             "url": f"{EXPRESSO}/solutions/{lead['_id']}",
             "references": [],
-            "_key": key,
+            # Every record's current name finds the offer, French ones too.
+            "_keys": sorted({norm(r["contentElement"]["name"]) for r in recs}),
         }
         for r in recs:
             offer_of_record[r["_id"]] = lead["_id"]
@@ -222,7 +287,8 @@ def build(api_dir: Path = CRAWL_API, curated: dict[str, Any] | None = None,
     # ------------------------------------------- value propositions (curated)
     by_key: dict[str, list[str]] = defaultdict(list)
     for oid, o in offers.items():
-        by_key[o["_key"]].append(oid)
+        for k in o["_keys"]:
+            by_key[k].append(oid)
 
     def match(name: str) -> list[str]:
         key = norm(name)
@@ -299,11 +365,64 @@ def build(api_dir: Path = CRAWL_API, curated: dict[str, Any] | None = None,
 
     used = {oid for vp in vps_out for oid in vp["offers"]}
     for o in offers.values():
-        o.pop("_key", None)
+        o.pop("_keys", None)
     offers = {k: v for k, v in offers.items() if k in used}
     references = {k: v for k, v in references.items() if any(o in used for o in v["offers"])}
     for r in references.values():
         r["offers"] = [o for o in r["offers"] if o in used]
+
+    # ------------------------------------------- CL open opportunities (CSV)
+    opportunities: dict[str, dict[str, Any]] = {}
+    pipeline_info = None
+    if pipeline:
+        opportunities = pipeline.get("opportunities", {})
+
+        def add(target: dict[str, Any], opp: dict[str, Any], tcv: float) -> None:
+            p = target.setdefault("pipeline", {"opportunities": [], "tcv_meur": 0.0})
+            if opp["id"] not in p["opportunities"]:
+                p["opportunities"].append(opp["id"])
+            p["tcv_meur"] = round(p["tcv_meur"] + tcv, 3)
+
+        unmatched_products: set[str] = set()
+        by_company: dict[str, list[str]] = defaultdict(list)
+        for rid, r in references.items():
+            by_company[company_key(r["customer"])].append(rid)
+        for opp in opportunities.values():
+            opp_offers: list[str] = []
+            for prod in opp["products"]:
+                hits = [oid for oid in crm_match(prod["name"]) if oid in offers]
+                if not hits:
+                    unmatched_products.add(prod["name"])
+                for oid in hits:
+                    add(offers[oid], opp, prod["tcv_meur"])
+                    names = offers[oid]["pipeline"].setdefault("products", [])
+                    if prod["name"] not in names:
+                        names.append(prod["name"])
+                    if oid not in opp_offers:
+                        opp_offers.append(oid)
+            opp["offers"] = opp_offers
+            opp["references"] = by_company.get(company_key(opp["account"]), []) if company_key(opp["account"]) else []
+            for rid in opp["references"]:
+                add(references[rid], opp, opp["tcv_meur"])
+        for svp_out in svps_out:
+            opps = [o for o in opportunities.values() if o["svp"] == svp_out["key"]]
+            if opps:
+                stages: dict[str, int] = defaultdict(int)
+                for o in opps:
+                    stages[o["stage"]] += 1
+                svp_out["pipeline"] = {"opportunities": len(opps),
+                                       "tcv_meur": round(sum(o["tcv_meur"] for o in opps), 3),
+                                       "by_stage": dict(sorted(stages.items()))}
+        pipeline_info = {
+            "source": pipeline.get("source"),
+            "opportunities": len(opportunities),
+            "tcv_meur": round(sum(o["tcv_meur"] for o in opportunities.values()), 3),
+            "offers_matched": sum(1 for o in offers.values() if "pipeline" in o),
+            "references_matched": sum(1 for r in references.values() if "pipeline" in r),
+            "opportunities_with_offer": sum(1 for o in opportunities.values() if o["offers"]),
+            "opportunities_with_reference": sum(1 for o in opportunities.values() if o["references"]),
+            "unmatched_products": sorted(unmatched_products, key=str.lower),
+        }
 
     crm_info = None
     if crm:
@@ -317,14 +436,19 @@ def build(api_dir: Path = CRAWL_API, curated: dict[str, Any] | None = None,
         "version": curated.get("version"),
         "generated_at": dt.datetime.now(dt.timezone.utc).isoformat(timespec="seconds"),
         "source": "Expresso crawl (data/espresso) + config/portfolio.yaml"
-                  + (f" + CRM extract ({crm.get('source')})" if crm else ""),
+                  + (f" + CRM extract ({crm.get('source')})" if crm else "")
+                  + (f" + CL opportunities ({pipeline.get('source')})" if pipeline else ""),
+        "excluded_sale_statuses": sorted(EXCLUDED_SALE_STATUSES),
         "svps": svps_out,
         "value_propositions": vps_out,
         "offers": offers,
         "references": references,
+        "opportunities": opportunities,
         "crm": crm_info,
+        "pipeline": pipeline_info,
         "counts": {"svps": len(svps_out), "value_propositions": len(vps_out),
-                   "offers": len(offers), "references": len(references)},
+                   "offers": len(offers), "references": len(references),
+                   "opportunities": len(opportunities)},
     }
 
 
@@ -332,10 +456,11 @@ class PortfolioStore:
     """Builds once, on first use, and serves the same payload afterwards."""
 
     def __init__(self, api_dir: Path = CRAWL_API, snapshot: Path = SNAPSHOT_PATH,
-                 curated: Path = CURATED_PATH, crm: Path | None = None):
+                 curated: Path = CURATED_PATH, crm: Path | None = None, pipeline: Path | None = None):
         from .crm import CRM_PATH
         self.api_dir, self.snapshot, self.curated = api_dir, snapshot, curated
         self.crm = crm or CRM_PATH
+        self.pipeline = pipeline  # None: the newest data/CL data *.csv
         self._data: dict[str, Any] | None = None
         self._lock = threading.Lock()
 
@@ -343,8 +468,10 @@ class PortfolioStore:
         with self._lock:
             if self._data is None:
                 if self.api_dir.is_dir():
+                    from .cl_pipeline import load as load_pipeline
                     from .crm import load as load_crm
-                    self._data = build(self.api_dir, load_curated(self.curated), load_crm(self.crm))
+                    self._data = build(self.api_dir, load_curated(self.curated), load_crm(self.crm),
+                                       load_pipeline(self.pipeline))
                 elif self.snapshot.is_file():
                     self._data = json.loads(self.snapshot.read_text(encoding="utf-8"))
                 else:
@@ -355,11 +482,14 @@ class PortfolioStore:
 
 
 def main(argv: list[str] | None = None) -> int:
+    from .cl_pipeline import load as load_pipeline
     from .crm import load as load_crm
     out = Path((argv or sys.argv[1:] or [str(SNAPSHOT_PATH)])[0])
-    data = build(crm=load_crm())
+    data = build(crm=load_crm(), pipeline=load_pipeline())
     out.write_text(json.dumps(data, ensure_ascii=False), encoding="utf-8")
     print(f"Wrote {out}: {data['counts']}")
+    if data.get("pipeline"):
+        print("CL pipeline:", {k: v for k, v in data["pipeline"].items() if k != "unmatched_products"})
     return 0
 
 
